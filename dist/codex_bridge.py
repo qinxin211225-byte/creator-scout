@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -236,7 +237,10 @@ def main():
     parser.add_argument("--origin", required=True, type=parse_origin,
                         help="允许配对的网站来源，例如 https://example.org")
     parser.add_argument("--ui-dir", type=Path, help="可选，下载源码后选择网站 dist 目录，在本机同源打开")
+    parser.add_argument("--connect", action="store_true", help="打开本机工作台并自动填入配对码")
     args = parser.parse_args()
+    if args.connect and not args.ui_dir:
+        parser.error("--connect 需要 --ui-dir")
     ui_dir = args.ui_dir.resolve() if args.ui_dir else None
     if ui_dir and not (ui_dir / "index.html").is_file():
         parser.error("--ui-dir 应当指向含 index.html 的网站发布目录")
@@ -252,6 +256,9 @@ def main():
         if ui_dir:
             print("本机工作台：" + LOCAL_ORIGIN + "/", flush=True)
         print("保持此窗口开启。按 Ctrl+C 断开连接。", flush=True)
+        if args.connect:
+            url = LOCAL_ORIGIN + "/#settings?pair=" + server.token
+            threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
         try:
             server.serve_forever()
         except KeyboardInterrupt:

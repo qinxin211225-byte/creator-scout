@@ -79,6 +79,16 @@ window.ScoutVisitor = (() => {
     el('country').onchange=changeCountry;
     el('mode').onchange=()=>el('materialField').hidden=el('mode').value!=='material';
     changeCountry(); modelsChanged();
+    if (location.origin === 'http://127.0.0.1:43219' && location.hash.startsWith('#settings?pair=')) {
+      const pair = new URLSearchParams(location.hash.slice('#settings?'.length)).get('pair');
+      history.replaceState(null, '', '#settings');
+      if (/^[A-Za-z0-9_-]{43}$/.test(pair || '')) {
+        el('provider').value = 'codex';
+        modelsChanged();
+        el('token').value = pair;
+        el('connectionStatus').textContent = '已自动配对。可直接开始查找，或点击测试连接。';
+      }
+    }
 
     el('checkModel').onclick=async()=>{
       const button=el('checkModel'), status=el('connectionStatus');
