@@ -57,3 +57,18 @@ test('转发程序拒绝不在白名单的地址和别的网站', async () => {
   assert.equal((await handleProxy(req('https://api.deepseek.com/x', 'https://other.example'), { allowedOrigins: ['https://scout.example'] })).status, 403);
   assert.equal((await handleProxy(new Request('https://scout.example/api/proxy'), {})).status, 200);
 });
+
+import { planTasks, coverKey } from '../js/search.js';
+test('不限模式按城市轮换，最久没搜过的城市优先，并换搜法', () => {
+  const au = { code: 'AU', name: '澳大利亚', cities: ['Sydney', 'Melbourne', 'Perth'] };
+  const g = { id: 'indonesian', name: '印尼人' };
+  const cov = { [coverKey('AU', 'indonesian', 'Sydney')]: 2, [coverKey('AU', 'indonesian', 'Melbourne')]: 1 };
+  const t = planTasks([[au, g]], { city: '' }, cov, 24);
+  assert.deepEqual(t.slice(0, 3).map(x => x.city), ['Perth', 'Melbourne', 'Sydney']);
+  assert.equal(t.length, 6);                                   // 3 个城市 × 每城最多 2 轮
+  // 同一个城市第二轮换搜法；以前搜过的城市，这次也换一种
+  assert.notEqual(t[0].angle.id, t[3].angle.id);
+  const before = planTasks([[au, g]], { city: '' }, {}, 24)[0];
+  const after = planTasks([[au, g]], { city: '' }, { [coverKey('AU', 'indonesian', before.city)]: [1, 1] }, 24).find(x => x.city === before.city);
+  assert.notEqual(before.angle.id, after.angle.id);
+});

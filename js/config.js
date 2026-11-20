@@ -25,6 +25,11 @@ export const FAN_PRESETS = [
   { id: '5-10', label: '5万–10万', min: 50000, max: 100000 },
 ];
 
+// 每次找多少位；0 = 不限（所有组合、城市、搜法都试一遍，直到找不到新的或手动停止）
+export const LIMITS = [
+  { v: 10, label: '10 位' }, { v: 30, label: '30 位' }, { v: 50, label: '50 位' }, { v: 0, label: '不限' },
+];
+
 export const CATEGORIES = {
   lifestyle: '生活日常', vlog: 'Vlog', family: '家庭育儿', food: '美食', travel: '旅行',
   beauty: '美妆', fashion: '穿搭', fitness: '健身', other: '其他',
