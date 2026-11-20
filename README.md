@@ -2,11 +2,13 @@
 
 **[👉 打开网页直接使用](https://qinxin211225-byte.github.io/creator-scout/)**　|　[English](#english)
 
-Scout 是一个找海外博主（KOL / 达人）的工作台。填上你自己的大模型 API Key，选好国家、人群、平台、粉丝区间和是否出镜，点「搜索」，AI 会联网帮你找到符合条件的个人博主，并整理成可以跟进的名单。
+Scout 是一个找海外博主（KOL / 达人）的工作台。连接你自己的 AI（**电脑上的 Codex**，或者 **API Key**），选好国家、人群、粉丝区间和是否出镜，点「搜索」，AI 会联网帮你找到符合条件的个人博主，并整理成可以跟进的名单。
+
+第一版专注 **Instagram**，界面也是 Instagram 风格。TikTok、X、YouTube 会陆续加入，每个平台有自己的风格。
 
 - **不用安装，不用注册**：打开网页就能用，手机和电脑都可以。
 - **数据只在你的浏览器里**：找到的博主、跟进备注、API Key 都保存在你自己的电脑上，不会上传到任何服务器。
-- **用你自己的模型额度**：支持 DeepSeek、Claude、OpenAI，以及通义千问、Kimi、智谱等 OpenAI 兼容接口。
+- **用你自己的 AI**：一键连接电脑上已登录的 Codex；或者填 DeepSeek、Claude、OpenAI、通义千问、Kimi、智谱等的 API Key。
 - **自动更新**：项目更新后，刷新网页就是最新版，你的数据不受影响。
 
 ---
@@ -14,27 +16,48 @@ Scout 是一个找海外博主（KOL / 达人）的工作台。填上你自己�
 ## 三步开始
 
 1. **打开网页**：点上面的链接。
-2. **连接模型**：进入「设置」，选服务商（推荐 DeepSeek，自带联网搜索，搜索不另收费），填上 API Key，点「测试连接」。
-3. **开始搜索**：回到「发现博主」，选条件，点「搜索」。按钮会一直转圈，直到找完为止，进度会实时显示。
+2. **连接 AI**：进入「设置」，二选一：
+   - **本机 Codex**：按页面上的三步走——下载连接程序、在终端运行一行命令、点「一键连接 Codex」（详见下文）。
+   - **API Key**：选服务商（推荐 DeepSeek，自带联网搜索），填 key，点「测试连接」。
+3. **开始搜索**：回到「找博主」，选条件，点「搜索」。按钮会转圈，直到找完为止，进度会实时显示。
+
+## 连接电脑上的 Codex
+
+适合已经在用 Codex CLI 的人。网页把搜索任务交给你电脑上的 Codex，Codex 联网找完再把结果传回网页。
+
+准备：电脑上装好 Python 3.9+ 和 [Codex CLI](https://github.com/openai/codex)，并运行过 `codex login`。
+
+1. 在网页「设置 → 本机 Codex」下载 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py)。
+2. 在下载的文件夹打开终端，运行网页上显示的命令，例如：
+   ```bash
+   python3 scout_codex_bridge.py --site https://qinxin211225-byte.github.io/creator-scout/
+   ```
+3. 点网页上的「一键连接 Codex」，在弹出的页面点「确认连接」，会自动回到 Scout。浏览器问是否允许访问本地网络时，选允许。
+
+保持终端窗口开着；按 Ctrl+C 断开。配对默认 12 小时有效（`--hours` 可改）。
+
+安全说明：连接程序只监听本机 `127.0.0.1:43219`，只接受 `--site` 指定网站的请求，必须带配对码；Codex 以只读沙箱运行，禁用命令执行、插件和应用，只做网页搜索和文字分析；不记录请求内容。如果你的 Codex CLI 版本不认识某些参数，程序会自动换成更简单的命令。
+
+浏览器不允许网站访问本机时：下载整个仓库，在仓库根目录运行
+`python3 bridge/scout_codex_bridge.py --site http://127.0.0.1:43219/ --ui-dir . --connect`，会在本机打开同一个工作台并自动配对。
 
 ## 功能
 
 | 功能 | 说明 |
 |---|---|
-| 条件搜索 | 国家、人群、城市、平台（Instagram / TikTok / YouTube）、粉丝区间、出镜要求（必须 / 优先 / 不限）、优先内容类别、本次数量 |
-| 条件模板 | 把常用条件存成模板，一键切换 |
-| 自动查找 | 打开开关后，每天第一次打开网页时自动按指定模板找一轮。网页关着时不会运行 |
-| 博主卡片 | 粉丝数、人群匹配度、是否本人出镜、优先分，以及 AI 的判断依据和来源链接 |
-| 跟进看板 | 待看 → 收藏 → 已联系 → 已回复 → 合作 / 放弃，可写备注 |
+| 搜索 | 国家、人群、粉丝区间、只要真人出镜、生活类优先；更多条件里有城市、数量、常用条件 |
+| 每天自动找 | 打开开关后，每天第一次打开网页时自动按当前条件找一轮。网页关着时不会运行 |
+| 博主卡片 | Instagram 主页风格：粉丝数、人群匹配度、是否出镜、简介、AI 的判断依据；一键收藏、标记不合适 |
+| 我的名单 | 收藏 → 已联系 → 已回复 → 合作 / 放弃，可写备注，可导出 CSV，最近查找记录 |
 | 去重 | 已经找到过的账号不会重复出现 |
-| 查找记录 | 每次搜索的候选数、新增数、重复数、失败原因和用量 |
-| 导出 | 导出 CSV（Excel / Google 表格可直接打开）；整个工作台可导出备份、导入恢复 |
-| 可配置 | 人群库、国家和城市都能在设置里增删改 |
+| 可配置 | 人群、国家和城市都能在设置里增删改 |
+| 备份 | 整个工作台可导出备份、导入恢复 |
 
 ## 支持的模型
 
 | 服务商 | 联网搜索 | 说明 |
 |---|---|---|
+| 本机 Codex | 自带 | 用你电脑上已登录的 Codex CLI，需要运行连接程序 |
 | DeepSeek（推荐） | 自带 | 搜索不另收费，只按 token 计费 |
 | Claude（Anthropic） | 自带 | 搜索按次收费 |
 | OpenAI | 自带 | 模型名请填支持 `web_search` 的模型 |
@@ -90,10 +113,11 @@ python3 -m http.server 8000
 # 然后打开 http://localhost:8000
 ```
 
-运行测试（需要 Node 22 或更高版本）：
+运行测试（需要 Node 22 和 Python 3.9 或更高版本）：
 
 ```bash
 node --test tests/*.test.mjs
+python3 -m unittest discover -s tests -p "test_*.py"
 ```
 
 ## 项目结构
@@ -108,6 +132,7 @@ js/search.js      找博主流程：搜索、校验、去重、打分
 js/app.js         界面逻辑
 proxy/worker.js   转发程序（可单独部署成 Cloudflare Worker）
 server/worker.mjs 整站部署到 Cloudflare Workers 时的入口
+bridge/           本机 Codex 连接程序
 tests/            自动化测试
 ```
 
@@ -129,7 +154,8 @@ tests/            自动化测试
 
 - **No install, no sign-up.** Just open the web page.
 - **Your data stays in your browser.** Creators, notes and API keys are stored locally and never sent to any server other than your chosen model provider.
-- **Bring your own model:** DeepSeek (recommended, built-in web search), Claude, OpenAI, or any OpenAI-compatible API plus a Tavily search key.
+- **Bring your own AI:** one-click connect to the Codex CLI on your computer (via a small local bridge), or use an API key: DeepSeek (built-in web search), Claude, OpenAI, or any OpenAI-compatible API plus a Tavily search key.
+- **Instagram first:** v1 focuses on Instagram with an Instagram-style UI; TikTok, X and YouTube will follow.
 - **Auto search:** optionally run one search per day the first time you open the page.
 - **Always up to date:** refresh the page to get the latest version.
 

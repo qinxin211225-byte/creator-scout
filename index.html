@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout 找博主</title>
-<meta name="description" content="开源的海外博主（KOL）搜寻工作台：填自己的大模型 key，按国家、人群、平台、粉丝、是否出镜找博主。">
+<meta name="description" content="开源的找博主工作台：用你自己的 AI（本机 Codex 或 API Key），按国家、人群、粉丝、是否出镜找 Instagram 博主。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23feda75'/%3E%3Cstop offset='.5' stop-color='%23d62976'/%3E%3Cstop offset='1' stop-color='%234f5bd5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='url(%23g)' stroke-width='4'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23d62976'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,199 +13,189 @@
 </head>
 <body>
 <div class="app">
-  <aside class="side" aria-label="主导航">
-    <div class="logo">Scout<small>开源找博主工作台</small></div>
-    <button class="nav-btn" data-nav="discover" id="nav-discover">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M15.9 8.1 13.6 13.6 8.1 15.9 10.4 10.4z"/></svg>
-      <span class="lbl">发现博主</span><span class="badge" id="badgeToday" hidden></span>
+  <nav class="side" aria-label="主导航">
+    <div class="logo">Scout</div>
+    <button type="button" class="nav" data-nav="discover" id="nav-discover">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7.5"/><path d="m21 21-4.6-4.6"/></svg>
+      <span class="lbl">找博主</span>
     </button>
-    <button class="nav-btn" data-nav="pipeline" id="nav-pipeline">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3.5" width="5" height="17" rx="1.5"/><rect x="9.5" y="3.5" width="5" height="11" rx="1.5"/><rect x="16" y="3.5" width="5" height="14" rx="1.5"/></svg>
-      <span class="lbl">跟进看板</span><span class="badge" id="badgePending" hidden></span>
+    <button type="button" class="nav" data-nav="list" id="nav-list">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 21 12 16.5 5 21V4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5z"/></svg>
+      <span class="lbl">我的名单</span><span class="badge" id="badgeList" hidden></span>
     </button>
-    <button class="nav-btn" data-nav="history" id="nav-history">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
-      <span class="lbl">查找记录</span>
-    </button>
-    <button class="nav-btn" data-nav="settings" id="nav-settings">
+    <button type="button" class="nav" data-nav="settings" id="nav-settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg>
-      <span class="lbl">设置</span><span class="badge dot-badge" id="badgeSetup" hidden>!</span>
+      <span class="lbl">设置</span><span class="badge warn" id="badgeSetup" hidden>!</span>
     </button>
     <div class="side-foot">
-      <span class="src-pill" id="modelPill"><i></i><span id="modelLabel">未连接模型</span></span>
-      <a id="repoLink" href="#" target="_blank" rel="noopener">GitHub · 开源 · v<span id="ver"></span></a>
+      <button type="button" class="conn" id="connPill" data-nav="settings"><i></i><span id="connLabel">未连接 AI</span></button>
+      <a id="repoLink" href="#" target="_blank" rel="noopener">开源 · GitHub · v<span id="ver"></span></a>
     </div>
-  </aside>
+  </nav>
 
   <main>
     <div class="wrap">
       <div id="bannerSlot"></div>
 
-      <!-- ================= 发现博主 ================= -->
+      <!-- ============ 找博主 ============ -->
       <section class="view" id="view-discover" aria-labelledby="h-discover">
-        <div class="page-head">
-          <div>
-            <h1 id="h-discover">发现博主</h1>
-            <p class="muted" id="dSub">选好条件，点「搜索」，AI 会联网帮你找。</p>
-          </div>
-        </div>
+        <div class="ptabs" role="tablist" aria-label="平台" id="ptabs"></div>
 
         <form class="finder" id="finder" autocomplete="off">
-          <div class="finder-top">
-            <label class="sr" for="presetSel">条件模板</label>
-            <select id="presetSel" aria-label="条件模板"></select>
-            <button type="button" class="ghost" id="btnPresetSave">保存为模板</button>
-            <button type="button" class="ghost" id="btnPresetDel">删除模板</button>
-            <span class="muted small" id="presetDirty" hidden>· 已修改</span>
+          <h1 id="h-discover">找 Instagram 博主</h1>
+          <div class="q"><span class="qk">在哪</span><div class="chips" id="chipCountries"></div></div>
+          <div class="q"><span class="qk">什么人</span><div class="chips" id="chipGroups"></div></div>
+          <div class="q"><span class="qk">粉丝</span><div class="chips" id="chipFans"></div></div>
+          <div class="q"><span class="qk">要求</span>
+            <div class="chips">
+              <label class="sw" for="qCam"><input type="checkbox" id="qCam" role="switch"><span class="tr" aria-hidden="true"></span>只要真人出镜</label>
+              <label class="sw" for="qLife"><input type="checkbox" id="qLife" role="switch"><span class="tr" aria-hidden="true"></span>生活类优先</label>
+            </div>
           </div>
-          <div class="frow"><span class="flabel">国家</span><div class="chips-in" id="chipCountries"></div></div>
-          <div class="frow"><span class="flabel">人群</span><div class="chips-in" id="chipGroups"></div></div>
-          <div class="frow"><span class="flabel">平台</span><div class="chips-in" id="chipPlatforms"></div></div>
-          <div class="frow"><span class="flabel">出镜</span><div class="chips-in" id="chipCamera"></div></div>
-          <div class="frow"><span class="flabel">优先类别</span><div class="chips-in" id="chipCats"></div></div>
-          <div class="frow frow-inputs">
-            <label class="fin"><span>粉丝从</span><input id="qFmin" type="number" min="0" step="1000" inputmode="numeric"></label>
-            <label class="fin"><span>到</span><input id="qFmax" type="number" min="0" step="1000" inputmode="numeric"></label>
-            <label class="fin"><span>城市（选填）</span><input id="qCity" type="text" placeholder="如 Melbourne"></label>
-            <label class="fin"><span>本次最多找</span><input id="qLimit" type="number" min="1" max="50" inputmode="numeric"></label>
-          </div>
-          <div class="finder-go">
-            <button type="submit" class="btn big" id="btnSearch">
+          <details class="more" id="more">
+            <summary>更多条件</summary>
+            <div class="more-in">
+              <label class="fin"><span>城市（选填）</span><input id="qCity" type="text" placeholder="如 Melbourne"></label>
+              <label class="fin"><span>这次最多找几位</span><input id="qLimit" type="number" min="1" max="30" inputmode="numeric"></label>
+              <label class="fin wide"><span>常用条件</span>
+                <span class="preset-row"><select id="presetSel" aria-label="常用条件"></select>
+                <button type="button" class="ghost" id="btnPresetSave">存为常用</button>
+                <button type="button" class="ghost" id="btnPresetDel">删除</button></span>
+              </label>
+            </div>
+          </details>
+
+          <div class="go">
+            <button type="submit" class="btn-ig" id="btnSearch">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-              <span>搜索</span>
+              <span id="btnSearchTxt">搜索</span>
             </button>
-            <span class="muted small" id="comboHint"></span>
+            <span class="hint" id="searchHint"></span>
           </div>
 
           <div class="progress" id="progress" hidden aria-live="polite">
-            <div class="prog-head">
-              <span class="spinner" aria-hidden="true"></span>
-              <div class="prog-txt"><b id="progTitle">正在搜索…</b><span class="muted small" id="progMeta"></span></div>
-              <button type="button" class="ghost" id="btnCancel">取消</button>
-            </div>
+            <span class="ring-spin" aria-hidden="true"><span></span></span>
+            <div class="prog-txt"><b id="progTitle">正在搜索…</b><span id="progMeta"></span></div>
+            <button type="button" class="ghost" id="btnCancel">取消</button>
             <ol class="prog-log" id="progLog"></ol>
           </div>
 
-          <div class="autobar">
-            <label class="switch" for="autoOn">
-              <input type="checkbox" id="autoOn" role="switch">
-              <span class="track-s" aria-hidden="true"></span>
-              <span><b>自动查找</b><span class="muted small" id="autoDesc">每天第一次打开这个网页时，自动按所选模板找一轮。</span></span>
-            </label>
-            <select id="autoPreset" aria-label="自动查找用的模板"></select>
+          <div class="auto">
+            <label class="sw" for="autoOn"><input type="checkbox" id="autoOn" role="switch"><span class="tr" aria-hidden="true"></span><span><b>每天自动找</b> <span class="hint" id="autoDesc"></span></span></label>
           </div>
         </form>
 
-        <div class="kpis" id="kpis"></div>
-        <div class="stories" id="stories" aria-label="按人群筛选"></div>
-        <div class="filters">
-          <div class="seg" role="group" aria-label="时间范围">
-            <button type="button" data-scope="today" aria-pressed="false">今天</button>
-            <button type="button" data-scope="7d" aria-pressed="false">近 7 天</button>
-            <button type="button" data-scope="all" aria-pressed="true">全部</button>
+        <div class="stories" id="stories" aria-label="按人群看"></div>
+        <div class="feed-head">
+          <h2 id="feedTitle">找到的博主</h2>
+          <div class="feed-ctl">
+            <div class="seg" role="group" aria-label="时间">
+              <button type="button" data-scope="today" aria-pressed="false">今天</button>
+              <button type="button" data-scope="all" aria-pressed="true">全部</button>
+            </div>
+            <label class="chk" for="fCam"><input type="checkbox" id="fCam"> 只看出镜</label>
+            <select id="fSort" aria-label="排序"><option value="priority">最匹配</option><option value="followers">粉丝最多</option><option value="newest">最新找到</option></select>
           </div>
-          <select id="fPlatform" aria-label="平台"></select>
-          <select id="fCountry" aria-label="国家"></select>
-          <select id="fCat" aria-label="内容类别">
-            <option value="all">全部类别</option><option value="life">生活类</option><option value="other">其他类</option>
-          </select>
-          <select id="fStatus" aria-label="跟进状态"></select>
-          <label class="toggle" for="fOnCam"><input type="checkbox" id="fOnCam"> 只看出镜</label>
-          <select id="fSort" aria-label="排序">
-            <option value="priority">按优先分</option><option value="followers">按粉丝数</option><option value="newest">按发现时间</option>
-          </select>
-          <input type="search" id="fQ" placeholder="搜索用户名、城市、简介" aria-label="搜索已找到的博主">
-          <button type="button" class="btn sec" id="btnCsv">导出 CSV</button>
         </div>
-        <p class="result-n" id="resultN"></p>
         <div class="grid" id="grid"></div>
       </section>
 
-      <!-- ================= 跟进看板 ================= -->
-      <section class="view" id="view-pipeline" aria-labelledby="h-pipe" hidden>
-        <div class="page-head"><div><h1 id="h-pipe">跟进看板</h1><p class="muted">改状态就会移到对应的列，备注显示在卡片下方。</p></div></div>
-        <div class="pipe" id="pipe"></div>
-      </section>
-
-      <!-- ================= 查找记录 ================= -->
-      <section class="view" id="view-history" aria-labelledby="h-his" hidden>
-        <div class="page-head"><div><h1 id="h-his">查找记录</h1><p class="muted">每次搜索（手动或自动）都记在这里。</p></div></div>
-        <div class="kpis" id="hisKpis"></div>
-        <div class="two">
-          <div class="panel"><h2>近 14 天每天新增</h2><div id="chart"></div></div>
-          <div class="panel"><h2>各人群累计</h2><div class="hbars" id="hbars"></div></div>
+      <!-- ============ 我的名单 ============ -->
+      <section class="view" id="view-list" aria-labelledby="h-list" hidden>
+        <div class="page-head">
+          <h1 id="h-list">我的名单</h1>
+          <button type="button" class="ghost" id="btnCsv">导出 CSV</button>
         </div>
-        <div class="panel" style="margin-top:18px"><h2>运行明细</h2><div class="tbl-wrap"><table id="runTable"></table></div></div>
+        <div class="tabs" role="tablist" id="listTabs"></div>
+        <div class="rows" id="rows"></div>
+        <h2 class="sub-h">最近查找</h2>
+        <div class="runs" id="runs"></div>
       </section>
 
-      <!-- ================= 设置 ================= -->
-      <section class="view set" id="view-settings" aria-labelledby="h-set" hidden>
-        <div class="page-head"><div><h1 id="h-set">设置</h1><p class="muted">所有设置和数据只保存在你这台电脑的浏览器里，不会上传到任何地方。</p></div></div>
+      <!-- ============ 设置 ============ -->
+      <section class="view" id="view-settings" aria-labelledby="h-set" hidden>
+        <div class="page-head"><h1 id="h-set">设置</h1></div>
 
-        <div class="panel">
-          <h2>1. 连接大模型</h2>
-          <p class="muted">用你自己的 key，费用由服务商直接向你收取。浏览器会直接请求服务商，不经过 Scout 或任何第三方。</p>
-          <div class="form">
-            <label for="sProvider">服务商</label>
-            <select id="sProvider"></select>
-            <p class="muted small" id="sProviderNote"></p>
-            <label for="sKey">API Key</label>
-            <input id="sKey" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false">
-            <a class="small" id="sKeyLink" href="#" target="_blank" rel="noopener">去哪里申请 key ↗</a>
-            <label for="sModel">模型名</label>
-            <input id="sModel" type="text" autocomplete="off" spellcheck="false">
-            <label for="sBase">接口地址（一般不用改）</label>
-            <input id="sBase" type="url" autocomplete="off" spellcheck="false">
-            <div id="sTavilyWrap" hidden>
-              <label for="sTavily">Tavily 搜索 key</label>
-              <input id="sTavily" type="password" placeholder="tvly-…" autocomplete="off" spellcheck="false" style="margin-top:6px">
-              <a class="small" href="https://app.tavily.com/" target="_blank" rel="noopener">申请 Tavily key ↗</a>
+        <section class="card-s">
+          <h2>用什么 AI 来找博主</h2>
+          <div class="choose" role="radiogroup" aria-label="AI 连接方式">
+            <label class="opt" for="modeCodex"><input type="radio" name="mode" id="modeCodex" value="codex">
+              <b>本机 Codex</b><span>用你电脑上登录好的 Codex 去找，结果自动传回网页。</span></label>
+            <label class="opt" for="modeApi"><input type="radio" name="mode" id="modeApi" value="api">
+              <b>API Key</b><span>填 DeepSeek、Claude、OpenAI 等的 key，不用装任何东西。</span></label>
+          </div>
+
+          <div id="panelCodex" class="panel-in" hidden>
+            <ol class="steps">
+              <li><b>下载连接程序</b>
+                <p>需要电脑上已经安装 Python 3 和 Codex CLI，并在终端运行过 <code>codex login</code>。</p>
+                <a class="btn-sec" id="dlBridge" href="bridge/scout_codex_bridge.py" download="scout_codex_bridge.py">下载 scout_codex_bridge.py</a></li>
+              <li><b>在下载的文件夹里打开终端，运行</b>
+                <div class="seg small" role="group" aria-label="电脑系统"><button type="button" data-os="mac" aria-pressed="true">Mac / Linux</button><button type="button" data-os="win" aria-pressed="false">Windows</button></div>
+                <div class="cmd"><code id="cmdText"></code><button type="button" class="ghost" id="btnCopyCmd">复制</button></div>
+                <p class="hint">运行后保持那个窗口开着。</p></li>
+              <li><b>一键连接</b>
+                <p>点下面的按钮，在新打开的页面点「确认连接」，会自动回到这里。浏览器问是否允许访问本地网络时，选允许。</p>
+                <div class="row-btns">
+                  <a class="btn-blue" id="btnConnect" href="http://127.0.0.1:43219/connect" target="_blank" rel="noopener">一键连接 Codex</a>
+                  <button type="button" class="btn-sec" id="btnCodexTest">检查连接</button>
+                </div>
+                <details class="mini"><summary>打不开？手动粘贴配对码</summary>
+                  <div class="row-btns"><input id="pairInput" type="password" placeholder="终端里显示的配对码" autocomplete="off" spellcheck="false"><button type="button" class="btn-sec" id="btnPair">连接</button></div>
+                </details></li>
+            </ol>
+            <p class="msg" id="codexMsg" role="status"></p>
+          </div>
+
+          <div id="panelApi" class="panel-in" hidden>
+            <div class="form">
+              <label for="sProvider">服务商</label>
+              <select id="sProvider"></select>
+              <p class="hint" id="sProviderNote"></p>
+              <label for="sKey">API Key</label>
+              <input id="sKey" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false">
+              <a class="small-link" id="sKeyLink" href="#" target="_blank" rel="noopener">去哪里申请 key ↗</a>
+              <label for="sModel">模型名</label>
+              <input id="sModel" type="text" autocomplete="off" spellcheck="false">
+              <label for="sBase">接口地址（一般不用改）</label>
+              <input id="sBase" type="url" autocomplete="off" spellcheck="false">
+              <div id="sTavilyWrap" hidden>
+                <label for="sTavily">Tavily 搜索 key（这类接口没有自带联网搜索）</label>
+                <input id="sTavily" type="password" placeholder="tvly-…" autocomplete="off" spellcheck="false">
+              </div>
+              <label class="chk" for="sRemember"><input type="checkbox" id="sRemember"> 在这台电脑上记住 key</label>
+              <details class="mini"><summary>高级：转发地址</summary>
+                <p class="hint">网页直连服务商被拦截时用，见 README。</p>
+                <input id="sProxy" type="url" placeholder="https://your-worker.workers.dev" autocomplete="off" spellcheck="false">
+              </details>
             </div>
-            <label class="toggle plain" for="sRemember"><input type="checkbox" id="sRemember"> 在这台电脑上记住 key（不勾选的话，关掉标签页就会忘记）</label>
-            <details class="adv">
-              <summary>高级：转发地址</summary>
-              <p class="muted small">有的服务商不允许网页直接调用。可以按 README 部署一个自己的转发程序（Cloudflare Worker，免费），把地址填在这里。</p>
-              <input id="sProxy" type="url" placeholder="https://your-worker.workers.dev" autocomplete="off" spellcheck="false">
-            </details>
+            <div class="row-btns"><button type="button" class="btn-blue" id="btnSaveModel">保存</button><button type="button" class="btn-sec" id="btnTestModel">测试连接</button></div>
+            <p class="msg" id="modelMsg" role="status"></p>
           </div>
-          <div class="actions">
-            <button type="button" class="btn" id="btnSaveModel">保存</button>
-            <button type="button" class="btn sec" id="btnTestModel">测试连接</button>
-          </div>
-          <p class="form-msg" id="modelMsg" role="status"></p>
-        </div>
+        </section>
 
-        <div class="panel">
-          <h2>2. 人群库</h2>
-          <p class="muted">搜索时能选的人群。「识别线索」会交给 AI，写这个人群常用的语言、国旗、标签和搜索词，<code>{city}</code> 会替换成城市名。</p>
-          <div class="tbl-wrap"><table class="edit-tbl" id="groupTbl"></table></div>
-          <div class="actions"><button type="button" class="btn sec" id="btnAddGroup">添加人群</button><button type="button" class="btn sec" id="btnResetGroups">恢复默认</button></div>
-        </div>
+        <details class="card-s fold">
+          <summary><h2>人群和国家</h2><span class="hint">增删搜索时能选的人群、国家和城市</span></summary>
+          <p class="hint">「识别线索」会交给 AI：写这个人群常用的语言、国旗、标签和搜索词，<code>{city}</code> 会换成城市名。</p>
+          <div class="tbl-wrap"><table class="edit" id="groupTbl"></table></div>
+          <div class="row-btns"><button type="button" class="btn-sec" id="btnAddGroup">添加人群</button><button type="button" class="btn-sec" id="btnResetGroups">恢复默认</button></div>
+          <div class="tbl-wrap" style="margin-top:18px"><table class="edit" id="countryTbl"></table></div>
+          <div class="row-btns"><button type="button" class="btn-sec" id="btnAddCountry">添加国家</button><button type="button" class="btn-sec" id="btnResetCountries">恢复默认</button></div>
+        </details>
 
-        <div class="panel">
-          <h2>3. 国家和城市</h2>
-          <p class="muted">城市用英文名，多个城市用逗号分隔。</p>
-          <div class="tbl-wrap"><table class="edit-tbl" id="countryTbl"></table></div>
-          <div class="actions"><button type="button" class="btn sec" id="btnAddCountry">添加国家</button><button type="button" class="btn sec" id="btnResetCountries">恢复默认</button></div>
-        </div>
-
-        <div class="panel">
-          <h2>4. 数据备份</h2>
-          <p class="muted">博主、跟进记录、模板和设置都在这个浏览器里。换电脑或清理浏览器前，先导出备份。备份里不包含 API Key。</p>
-          <div class="actions">
-            <button type="button" class="btn sec" id="btnExport">导出备份</button>
-            <label class="btn sec file-btn" for="importFile">导入备份</label>
+        <details class="card-s fold">
+          <summary><h2>数据备份</h2><span class="hint">所有数据只在这个浏览器里</span></summary>
+          <p class="hint">换电脑或清理浏览器前先导出。备份不含 key 和配对码。</p>
+          <div class="row-btns">
+            <button type="button" class="btn-sec" id="btnExport">导出备份</button>
+            <label class="btn-sec" for="importFile">导入备份</label>
             <input type="file" id="importFile" accept="application/json,.json" hidden>
-            <button type="button" class="btn sec danger" id="btnClear">清空所有数据</button>
+            <button type="button" class="btn-sec danger" id="btnClear">清空所有数据</button>
           </div>
-          <p class="form-msg" id="dataMsg" role="status"></p>
-        </div>
+          <p class="msg" id="dataMsg" role="status"></p>
+        </details>
 
-        <div class="panel">
-          <h2>关于</h2>
-          <p>Scout 是一个开源项目（MIT 许可证）。网页更新后刷新即可用上最新版，你的数据不受影响。</p>
-          <p class="muted small">使用须知：只收集博主公开展示的信息；判断人群只依据博主自述和内容语言，不根据长相推断；请遵守各平台规则和当地隐私法规，不要用于批量骚扰。</p>
-        </div>
+        <p class="hint about">Scout 是开源项目（MIT）。只收集博主公开展示的信息；判断人群只依据博主自述和内容语言，不根据长相推断。请遵守平台规则和隐私法规，不要批量骚扰。</p>
       </section>
     </div>
   </main>

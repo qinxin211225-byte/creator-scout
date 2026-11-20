@@ -1,7 +1,7 @@
 // Scout 默认配置。用户在「设置」里改的内容保存在自己的浏览器，不会改这个文件。
 // 想给所有人换默认值（比如加一个国家），改这里再提交即可。
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 export const REPO_URL = 'https://github.com/qinxin211225-byte/creator-scout';
 
 export const PLATFORMS = {
@@ -9,6 +9,21 @@ export const PLATFORMS = {
   tiktok:    { label: 'TikTok',    url: u => `https://www.tiktok.com/@${encodeURIComponent(u)}`,  site: 'tiktok.com' },
   youtube:   { label: 'YouTube',   url: u => `https://www.youtube.com/@${encodeURIComponent(u)}`, site: 'youtube.com' },
 };
+
+// 平台标签：第一版只开放 Instagram，其他平台以后加（每个平台有自己的界面风格）
+export const PLATFORM_TABS = [
+  { id: 'instagram', label: 'Instagram', ready: true },
+  { id: 'tiktok', label: 'TikTok', ready: false },
+  { id: 'x', label: 'X', ready: false },
+  { id: 'youtube', label: 'YouTube', ready: false },
+];
+
+export const FAN_PRESETS = [
+  { id: '1-10', label: '1万–10万', min: 10000, max: 100000 },
+  { id: '1-3', label: '1万–3万', min: 10000, max: 30000 },
+  { id: '3-5', label: '3万–5万', min: 30000, max: 50000 },
+  { id: '5-10', label: '5万–10万', min: 50000, max: 100000 },
+];
 
 export const CATEGORIES = {
   lifestyle: '生活日常', vlog: 'Vlog', family: '家庭育儿', food: '美食', travel: '旅行',
@@ -49,13 +64,13 @@ export const DEFAULT_PRESETS = [
   {
     id: 'example-asia', name: '示例：澳洲/加拿大的亚洲移民生活博主',
     countries: ['AU', 'CA'], groups: ['indonesian', 'indian', 'thai', 'malaysian', 'filipino', 'nepali', 'hongkong'],
-    city: '', platforms: ['instagram', 'tiktok', 'youtube'], fmin: 10000, fmax: 100000,
+    city: '', platforms: ['instagram'], fmin: 10000, fmax: 100000,
     camera: 'prefer', categories: ['lifestyle', 'vlog', 'family'], limit: 10,
   },
   {
     id: 'example-latam', name: '示例：美国的拉美移民生活博主',
     countries: ['US'], groups: ['colombian', 'mexican'],
-    city: '', platforms: ['instagram', 'tiktok', 'youtube'], fmin: 10000, fmax: 100000,
+    city: '', platforms: ['instagram'], fmin: 10000, fmax: 100000,
     camera: 'prefer', categories: ['lifestyle', 'vlog', 'family'], limit: 10,
   },
 ];
@@ -65,6 +80,11 @@ export const DEFAULT_PRESETS = [
 //   responses = OpenAI Responses 格式（自带 web_search）
 //   chat      = OpenAI Chat Completions 格式，联网靠 Tavily
 export const PROVIDERS = {
+  codex: {
+    label: '本机 Codex', api: 'codex', search: 'codex',
+    base: 'http://127.0.0.1:43219', model: 'Codex',
+    keyUrl: '', note: '用你电脑上已登录的 Codex CLI 去找，结果传回网页。需要运行一个小的连接程序。',
+  },
   deepseek: {
     label: 'DeepSeek', api: 'messages', search: 'deepseek',
     base: 'https://api.deepseek.com/anthropic', model: 'deepseek-flash',
