@@ -27,27 +27,32 @@ const SYSTEM = `你是海外达人（KOL）搜寻助手，用网页搜索寻找�
 6. 是否本人出镜：根据看到的内容（vlog、自拍、口播、视频描述）判断；判断不了写 null。
 7. 只输出一个 JSON 对象，不要任何解释文字。`;
 
-function buildPrompt({ country, group, q, n, exclude }) {
-  const city = q.city ? q.city : country.cities.slice(0, 4).join(' / ');
-  const hints = (group.hints || '').replace(/\{city\}/g, q.city || country.cities[0] || country.name);
+// 每一轮换一种搜法，避免总搜到同一批人
+export const ANGLES = [
+  { id: 'market', zh: '达人平台', tip: (g, city, sites) => `优先在达人合作平台的公开页面找：site:collabstr.com、site:joinbrands.com、site:heepsy.com 加“${g.name}（英文人群名）+ ${city} + lifestyle/creator”。这些页面常写着所在城市和粉丝数。` },
+  { id: 'native', zh: '母语关键词', tip: (g, city, sites) => `用这个人群的母语关键词和标签加城市名搜索（见识别线索），也可以加 ${sites}。` },
+  { id: 'media', zh: '媒体文章', tip: (g, city) => `找媒体、博客、社区网站上“${city} 的${g.name}博主/网红推荐”“在${city}生活的${g.name}”这类文章和名单，从里面挑个人博主。` },
+  { id: 'similar', zh: '相似账号', tip: (g, city) => `从已经知道的同类博主出发（合作对象、互相提到的朋友、评论区活跃的同城博主、同一个社区活动的参与者）找新的人。可以搜“${g.name} creator ${city} collab”。` },
+  { id: 'niche', zh: '细分内容', tip: (g, city) => `按细分内容找：${city} 的${g.name}妈妈博主、留学生、打工度假、夫妻 vlog、家常菜、开箱、穿搭等，每种都试一下。` },
+];
+
+function buildPrompt({ country, group, q, n, exclude, city, angle }) {
+  const hints = (group.hints || '').replace(/\{city\}/g, city);
   const plats = q.platforms.map(p => PLATFORMS[p].label).join('、');
   const sites = q.platforms.map(p => 'site:' + PLATFORMS[p].site).join('、');
   const cats = (q.categories || []).map(c => CATEGORIES[c]).join('、') || '不限';
   return `请找 ${n} 位符合条件的博主：
-- 常住在：${country.name}（${country.code}），城市优先：${city}
+- 常住在：${country.name}（${country.code}），这次重点找：${city}（附近城市也可以）
 - 人群：${group.name}
 - 识别线索和搜索关键词：${hints || '无'}
 - 平台：${plats}
 - 粉丝数：${q.fmin} 到 ${q.fmax}
 - 出镜要求：${CAMERA[q.camera] || '不限'}
 - 优先内容类别：${cats}
-${exclude.length ? `- 这些账号已经找到过，不要再返回：${exclude.join(', ')}\n` : ''}
-搜索建议（按效果排序）：
-1. 达人合作平台的公开页面常写着所在城市、人群和粉丝数，最好找：site:collabstr.com、site:joinbrands.com 加“${group.name}/英文人群名 + 城市名 + lifestyle”。
-2. 识别线索里的关键词加城市名；也可以用 ${sites} 加关键词。
-3. 媒体或博客的“某城市某国移民博主推荐”文章。
-4. 从合格博主的合作对象、相似账号继续找。
-注意：很多结果是住在本国的博主（比如住在菲律宾的菲律宾博主），必须确认是常住在${country.name}的才返回。username 必须是 Instagram 用户名。
+
+这一轮的搜法：${angle.tip(group, city, sites)}
+${exclude.length ? `\n下面这些账号已经找到过或看过了，一个都不要再返回，要找新的人：\n${exclude.join(', ')}\n` : ''}
+注意：很多结果是住在本国的博主（比如住在菲律宾的菲律宾博主），必须确认常住在${country.name}的才返回。username 必须是 ${plats} 用户名。宁可少返回，也不要编造。
 
 输出格式（字段名不要改）：
 {"creators":[{
@@ -68,7 +73,7 @@ ${exclude.length ? `- 这些账号已经找到过，不要再返回：${exclude.
   "contact_email":"简介里公开写出的邮箱，没有写 null",
   "sources":["你看到这个账号的网址"]
 }]}
-如果确实找不到，返回 {"creators":[]}。`;
+如果确实找不到新的，返回 {"creators":[]}。`;
 }
 
 function num(v) {
@@ -122,80 +127,131 @@ export function normalizeCandidate(raw, { country, group, q, runId, sources }) {
 
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
+export const coverKey = (country, group, city) => `${country}|${group}|${city}`.toLowerCase();
+
 /**
- * 运行一次查找。
- * @returns {Promise<{run, added}>}
+ * 生成搜索任务：轮流搜每个“国家 × 人群”，每轮换一个城市（最久没搜过的优先）和一种搜法。
+ * coverage：{ key: 上次搜索时间 }，用来跨次记住搜过哪里。
  */
-export async function runSearch({ q, cfg, groups, countries, existing, onProgress, signal, trigger, presetName }) {
+export function planTasks(combos, q, coverage, rounds) {
+  const perCombo = combos.map(([country, group]) => {
+    const cities = q.city ? [q.city] : (country.cities.length ? country.cities.slice() : [country.name]);
+    cities.sort((a, b) => covTime(coverage[coverKey(country.code, group.id, a)]) - covTime(coverage[coverKey(country.code, group.id, b)]));
+    return { country, group, cities };
+  });
+  const tasks = [];
+  for (let r = 0; r < rounds; r++) {
+    for (const c of perCombo) {
+      if (!q.city && r >= c.cities.length * 2) continue;            // 每个城市最多搜两轮（两种搜法）
+      const city = c.cities[r % c.cities.length];
+      const times = covCount(coverage[coverKey(c.country.code, c.group.id, city)]);   // 这个城市以前搜过几次，换一种没用过的搜法
+      const angle = ANGLES[(Math.floor(r / c.cities.length) + times + hashStr(c.group.id + c.country.code)) % ANGLES.length];
+      tasks.push({ country: c.country, group: c.group, city, angle, round: r });
+    }
+  }
+  return tasks;
+}
+// coverage 的值：[上次时间, 次数]（兼容旧版只存时间）
+const covTime = v => Array.isArray(v) ? v[0] : (v || 0);
+const covCount = v => Array.isArray(v) ? v[1] : (v ? 1 : 0);
+function hashStr(s) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
+
+/**
+ * 运行一次查找。q.limit = 0 表示不限：把所有组合、城市、搜法都试一遍，直到找不到新的或被停止。
+ * seen：以前看过但没收录的账号（不合格、重复），会告诉 AI 不要再返回。
+ * onFound：每找到一位就回调一次，界面可以边找边显示、边保存。
+ */
+export async function runSearch({ q, cfg, groups, countries, existing, seen = [], coverage = {}, onProgress, onFound, onSeen, onCover, signal, trigger, presetName }) {
   const runId = 'run-' + Date.now().toString(36);
+  const unlimited = !q.limit;
+  const limit = unlimited ? Infinity : Math.max(1, Math.min(500, q.limit));
   const run = {
     id: runId, trigger: trigger || 'manual', preset: presetName || '自定义条件',
     started_at: new Date().toISOString(), finished_at: null, status: 'running',
-    provider: cfg.provider, model: cfg.model,
+    provider: cfg.provider, model: cfg.model, limit: unlimited ? 0 : limit,
     combos: [], calls: 0, candidates: 0, added: 0, duplicates: 0, rejected: 0,
     reject_reasons: {}, errors: [], usage: { input: 0, output: 0, searches: 0 },
   };
   const log = (text, kind) => onProgress && onProgress({ text, kind, run });
 
   const known = new Set();
+  const byGroup = {};                      // 每个人群已知的用户名，用于告诉 AI 不要重复
+  const remember = (platform, username, group) => {
+    known.add(keyOf(platform, username));
+    if (group) (byGroup[group] = byGroup[group] || new Set()).add(String(username).toLowerCase());
+  };
   for (const c of existing) {
-    known.add(keyOf(c.platform, c.username));
-    for (const a of c.linked_accounts || []) known.add(keyOf(a.platform, a.username));
+    remember(c.platform, c.username, c.group);
+    for (const a of c.linked_accounts || []) remember(a.platform, a.username, c.group);
   }
+  for (const s of seen) remember(s.platform || 'instagram', s.username, s.group);
+
   const gById = Object.fromEntries(groups.map(g => [g.id, g]));
   const cByCode = Object.fromEntries(countries.map(c => [c.code, c]));
   const combos = [];
   for (const cc of q.countries) for (const gid of q.groups) if (cByCode[cc] && gById[gid]) combos.push([cByCode[cc], gById[gid]]);
-  if (!combos.length) throw new Error('请至少选一个国家和一个人群');
+  if (!combos.length) throw new Error('请至少选一个国家和一种人');
 
-  const limit = Math.max(1, Math.min(50, q.limit || 10));
-  const order = shuffle(combos);
-  const maxCalls = Math.min(order.length, Math.max(2, Math.ceil(limit / 3) + 1), 12);
-  const added = [];
-  let consecutiveFail = 0;
+  const rounds = unlimited ? 24 : Math.max(1, Math.ceil(limit / Math.max(1, combos.length * 2)) + 1);
+  const tasks = planTasks(shuffle(combos), q, coverage, rounds);
+  const maxCalls = unlimited ? tasks.length : Math.min(tasks.length, Math.max(2, Math.ceil(limit / 2) + 2));
+  const dryLimit = unlimited ? Math.max(6, combos.length * 3) : Math.max(4, combos.length + 2);
+  let dry = 0, failStreak = 0, added = 0;
+  const comboDry = {};
 
-  for (let i = 0; i < maxCalls && added.length < limit; i++) {
+  for (let i = 0; i < tasks.length && run.calls < maxCalls && added < limit; i++) {
     if (signal && signal.aborted) break;
-    const [country, group] = order[i];
-    const label = `${group.name} · ${country.name}${q.city ? ' · ' + q.city : ''}`;
-    run.combos.push(label);
-    const n = Math.min(8, Math.max(3, Math.ceil((limit - added.length) * 1.5)));
-    log(`正在搜索：${label}（第 ${i + 1}/${maxCalls} 组）`, 'step');
-    const exclude = existing.concat(added).filter(c => c.group === group.id).map(c => c.username).slice(0, 60);
+    const { country, group, city, angle } = tasks[i];
+    const ck = country.code + '|' + group.id;
+    if ((comboDry[ck] || 0) >= 3) continue;            // 这个组合连续 3 轮没新人，先跳过
+    const label = `${group.name} · ${city}，${country.name}`;
+    run.combos.push(`${label}（${angle.zh}）`);
+    const n = unlimited ? 8 : Math.min(8, Math.max(3, Math.ceil((limit - added) * 1.5)));
+    log(`正在搜索：${label} · ${angle.zh}（第 ${run.calls + 1} 轮）`, 'step');
+    const exclude = Array.from(byGroup[group.id] || []).slice(-150);
     let res;
     try {
       run.calls++;
-      res = await callLLM(cfg, { system: SYSTEM, user: buildPrompt({ country, group, q, n, exclude }), search: true, maxTokens: 6000, signal });
-      consecutiveFail = 0;
+      res = await callLLM(cfg, { system: SYSTEM, user: buildPrompt({ country, group, q, n, exclude, city, angle }), search: true, maxTokens: 6000, signal });
+      failStreak = 0;
+      onCover && onCover(coverKey(country.code, group.id, city));
     } catch (e) {
       if (e.name === 'AbortError') break;
       run.errors.push(`${label}：${e.message}`);
       log(`${label} 失败：${e.message}`, 'error');
       if (['auth', 'billing', 'config', 'network'].includes(e.kind)) { run.status = 'failed'; break; }
-      if (++consecutiveFail >= 2) break;
+      if (++failStreak >= 3) break;
       continue;
     }
     run.usage.input += res.usage.input; run.usage.output += res.usage.output; run.usage.searches += res.usage.searches;
     let list = [];
     try { const j = extractJSON(res.text); list = Array.isArray(j) ? j : (j.creators || []); }
-    catch (e) { run.errors.push(`${label}：模型回复格式不对（${e.message}）`); log(`${label}：模型回复格式不对，跳过`, 'error'); continue; }
+    catch (e) { run.errors.push(`${label}：回复格式不对`); log(`${label}：AI 回复格式不对，跳过`, 'error'); continue; }
     run.candidates += list.length;
     let got = 0;
     for (const raw of list) {
-      if (added.length >= limit) break;
+      if (added >= limit) break;
       const r = normalizeCandidate(raw || {}, { country, group, q, runId, sources: res.sources });
-      if (r.reject) { run.rejected++; run.reject_reasons[r.reject] = (run.reject_reasons[r.reject] || 0) + 1; continue; }
-      const k = r.creator.id;
-      if (known.has(k)) { run.duplicates++; continue; }
-      known.add(k); added.push(r.creator); got++;
+      const uname = String((raw && raw.username) || '').replace(/^@/, '').trim();
+      if (r.reject) {
+        run.rejected++; run.reject_reasons[r.reject] = (run.reject_reasons[r.reject] || 0) + 1;
+        if (uname) { remember(raw.platform || 'instagram', uname, group.id); onSeen && onSeen({ platform: String(raw.platform || 'instagram').toLowerCase(), username: uname.toLowerCase(), group: group.id, reason: r.reject }); }
+        continue;
+      }
+      if (known.has(r.creator.id)) { run.duplicates++; continue; }
+      remember(r.creator.platform, r.creator.username, group.id);
+      added++; got++;
+      onFound && onFound(r.creator, run);
     }
-    log(`${label}：看到 ${list.length} 个候选，留下 ${got} 位（累计 ${added.length}/${limit}）`, got ? 'ok' : 'info');
+    comboDry[ck] = got ? 0 : (comboDry[ck] || 0) + 1;
+    dry = got ? 0 : dry + 1;
+    log(`${label}：看到 ${list.length} 个，新找到 ${got} 位（这次累计 ${added}${unlimited ? '' : '/' + limit}）`, got ? 'ok' : 'info');
+    if (dry >= dryLimit) { log(`连续 ${dry} 轮没有新博主，这些条件下能找到的基本找完了。可以换城市、换人群，或过几天再找。`, 'info'); break; }
   }
 
-  added.sort((a, b) => b.priority_score - a.priority_score);
-  run.added = added.length;
+  run.added = added;
   run.finished_at = new Date().toISOString();
   if (signal && signal.aborted) run.status = 'cancelled';
-  else if (run.status !== 'failed') run.status = run.errors.length ? (added.length ? 'partial' : 'failed') : 'ok';
-  return { run, added };
+  else if (run.status !== 'failed') run.status = run.errors.length && !added ? 'failed' : run.errors.length ? 'partial' : 'ok';
+  return { run };
 }

@@ -9,6 +9,8 @@ const K = {
   groups: 'scout.groups.v1',
   countries: 'scout.countries.v1',
   secret: 'scout.secret.v1',
+  seen: 'scout.seen.v1',
+  coverage: 'scout.coverage.v1',
 };
 
 function read(storage, key, fallback) {
@@ -34,6 +36,19 @@ export const store = {
   runs: () => read(L(), K.runs, []),
   saveRuns: list => write(L(), K.runs, list.slice(0, 200)),
 
+  // 看过但没收录的账号（不合格或重复），下次告诉 AI 别再推荐；最多记 5000 个
+  seen: () => read(L(), K.seen, []),
+  addSeen(items) {
+    if (!items.length) return;
+    const all = read(L(), K.seen, []);
+    const keys = new Set(all.map(x => x.platform + ':' + x.username));
+    for (const it of items) if (!keys.has(it.platform + ':' + it.username)) { all.push(it); keys.add(it.platform + ':' + it.username); }
+    write(L(), K.seen, all.slice(-5000));
+  },
+  // 每个“国家|人群|城市”上次搜索的时间，下次优先搜没搜过的城市
+  coverage: () => read(L(), K.coverage, {}),
+  touchCoverage(key) { const c = read(L(), K.coverage, {}); const v = c[key]; c[key] = [Date.now(), (Array.isArray(v) ? v[1] : v ? 1 : 0) + 1]; write(L(), K.coverage, c); },
+
   settings: () => Object.assign(clone(DEFAULT_SETTINGS), read(L(), K.settings, {})),
   saveSettings: s => write(L(), K.settings, s),
 
@@ -54,7 +69,7 @@ export const store = {
   exportAll() {
     return {
       app: 'scout', exported_at: new Date().toISOString(),
-      creators: this.creators(), runs: this.runs(), presets: this.presets(),
+      creators: this.creators(), runs: this.runs(), presets: this.presets(), seen: this.seen(), coverage: this.coverage(),
       groups: this.groups(), countries: this.countries(), settings: this.settings(),
     };
   },
@@ -65,6 +80,8 @@ export const store = {
     if (Array.isArray(data.presets)) this.savePresets(data.presets);
     if (Array.isArray(data.groups)) this.saveGroups(data.groups);
     if (Array.isArray(data.countries)) this.saveCountries(data.countries);
+    if (Array.isArray(data.seen)) write(L(), K.seen, data.seen);
+    if (data.coverage && typeof data.coverage === 'object') write(L(), K.coverage, data.coverage);
     if (data.settings) this.saveSettings(Object.assign(this.settings(), data.settings));
   },
   clearAll() {

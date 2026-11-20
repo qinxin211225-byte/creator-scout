@@ -46,6 +46,7 @@
           <div class="q"><span class="qk">在哪</span><div class="chips" id="chipCountries"></div></div>
           <div class="q"><span class="qk">什么人</span><div class="chips" id="chipGroups"></div></div>
           <div class="q"><span class="qk">粉丝</span><div class="chips" id="chipFans"></div></div>
+          <div class="q"><span class="qk">找多少</span><div class="chips" id="chipLimit"></div></div>
           <div class="q"><span class="qk">要求</span>
             <div class="chips">
               <label class="sw" for="qCam"><input type="checkbox" id="qCam" role="switch"><span class="tr" aria-hidden="true"></span>只要真人出镜</label>
@@ -56,7 +57,6 @@
             <summary>更多条件</summary>
             <div class="more-in">
               <label class="fin"><span>城市（选填）</span><input id="qCity" type="text" placeholder="如 Melbourne"></label>
-              <label class="fin"><span>这次最多找几位</span><input id="qLimit" type="number" min="1" max="30" inputmode="numeric"></label>
               <label class="fin wide"><span>常用条件</span>
                 <span class="preset-row"><select id="presetSel" aria-label="常用条件"></select>
                 <button type="button" class="ghost" id="btnPresetSave">存为常用</button>
@@ -76,7 +76,7 @@
           <div class="progress" id="progress" hidden aria-live="polite">
             <span class="ring-spin" aria-hidden="true"><span></span></span>
             <div class="prog-txt"><b id="progTitle">正在搜索…</b><span id="progMeta"></span></div>
-            <button type="button" class="ghost" id="btnCancel">取消</button>
+            <button type="button" class="ghost" id="btnCancel">停止</button>
             <ol class="prog-log" id="progLog"></ol>
           </div>
 

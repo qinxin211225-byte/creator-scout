@@ -1,4 +1,4 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js';
 import { store } from './store.js';
 import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js';
 import { runSearch } from './search.js';
@@ -78,8 +78,8 @@ function renderFinder() {
   $('#chipFans').innerHTML = FAN_PRESETS.map(f => chip('fans', f.id, f.label, f.id === fid)).join('');
   $('#qCam').checked = Q.camera === 'require';
   $('#qLife').checked = (Q.categories || []).length > 0;
+  $('#chipLimit').innerHTML = LIMITS.map(l => chip('limit', l.v, l.label, (Q.limit || 0) === l.v)).join('');
   $('#qCity').value = Q.city || '';
-  $('#qLimit').value = Q.limit || 10;
   $('#presetSel').innerHTML = presets.map(p => `<option value="${esc(p.id)}"${p.id === settings.activePresetId ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   $('#autoOn').checked = !!settings.auto.enabled;
   $('#autoDesc').textContent = autoText();
@@ -88,13 +88,14 @@ function renderFinder() {
 function updateHint() {
   const err = checkConfig(llmConfig());
   const n = Q.countries.length * Q.groups.length;
-  $('#searchHint').textContent = err ? err : !n ? '至少选一个国家和一种人' : `会在 ${n} 种组合里挑几组搜，最多找 ${Q.limit} 位`;
+  $('#searchHint').textContent = err ? err : !n ? '至少选一个国家和一种人' : !Q.limit
+    ? `不限：${n} 种组合轮流搜，每轮换城市和搜法，直到找不到新的或你点「停止」。找到的边找边显示`
+    : `在 ${n} 种组合里轮流搜，换着城市找，找满 ${Q.limit} 位就停`;
   $('#searchHint').style.color = err ? 'var(--warn)' : '';
   $('#btnSearch').disabled = !!controller;
 }
 function readInputs() {
   Q.city = $('#qCity').value.trim();
-  const l = parseInt($('#qLimit').value, 10); Q.limit = isFinite(l) ? Math.max(1, Math.min(30, l)) : 10;
   Q.camera = $('#qCam').checked ? 'require' : 'prefer';
   Q.categories = $('#qLife').checked ? LIFESTYLE.slice() : [];
 }
@@ -115,44 +116,58 @@ async function doSearch(trigger, preset) {
   const prog = $('#progress');
   prog.hidden = false; prog.classList.remove('done');
   $('#progLog').innerHTML = '';
-  $('#btnCancel').textContent = '取消';
+  $('#btnCancel').textContent = '停止';
   $('#progTitle').textContent = trigger === 'auto' ? '每天自动找：正在搜索…' : '正在搜索…';
   $('#btnSearch').disabled = true; $('#btnSearchTxt').textContent = '搜索中…';
-  const perGroup = isCodex() ? 'Codex 每组通常 1～4 分钟' : 'AI 联网搜索每组通常 20～90 秒';
-  const tick = setInterval(() => { const s = Math.round((Date.now() - t0) / 1000); $('#progMeta').textContent = `已用时 ${Math.floor(s / 60)}:${pad(s % 60)} · ${perGroup}`; }, 1000);
+  lastAdded = new Set();
+  let found = 0;
+  const perGroup = isCodex() ? 'Codex 每轮通常 1～4 分钟' : '每轮通常 20～90 秒';
+  const meta = () => { const s = Math.round((Date.now() - t0) / 1000); $('#progMeta').textContent = `已找到 ${found} 位 · 用时 ${Math.floor(s / 60)}:${pad(s % 60)} · ${perGroup}${q.limit ? '' : ' · 随时可以停止，已找到的会保留'}`; };
+  const tick = setInterval(meta, 1000); meta();
   prog.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (!q.limit) { F.scope = 'today'; F.group = 'all'; }
+  let pendingRender = null;
+  const seenBuf = [];
 
   let result = null;
   try {
     result = await runSearch({
-      q, cfg, groups, countries, existing: creators, signal: controller.signal, trigger, presetName: name,
+      q, cfg, groups, countries, existing: creators, seen: store.seen(), coverage: store.coverage(),
+      signal: controller.signal, trigger, presetName: name,
       onProgress: ({ text, kind }) => {
         $('#progLog').insertAdjacentHTML('beforeend', `<li class="${kind || ''}">${esc(text)}</li>`);
+        const log = $('#progLog'); log.scrollTop = log.scrollHeight;
         if (kind === 'step') $('#progTitle').textContent = text;
+        if (seenBuf.length) store.addSeen(seenBuf.splice(0));
       },
+      onFound: c => {   // 边找边保存、边显示
+        creators.unshift(c); found++; lastAdded.add(c.id); persist(); meta();
+        if (!pendingRender) pendingRender = setTimeout(() => { pendingRender = null; if (currentView === 'discover') renderFeed(); renderChrome(); }, 300);
+      },
+      onSeen: s => seenBuf.push(s),
+      onCover: key => store.touchCoverage(key),
     });
   } catch (e) { toast(e.message); }
+  if (seenBuf.length) store.addSeen(seenBuf.splice(0));
   clearInterval(tick);
   controller = null;
   $('#btnSearch').disabled = false; $('#btnSearchTxt').textContent = '搜索';
-  if (!result) { prog.hidden = true; updateHint(); return; }
+  if (!result) { if (!found) prog.hidden = true; updateHint(); render(); return; }
 
-  const { run, added } = result;
-  creators = added.concat(creators); persist();
+  const { run } = result;
   runs.unshift(run); store.saveRuns(runs);
-  lastAdded = new Set(added.map(c => c.id));
-  const st = { ok: '完成', partial: '部分完成', failed: '没有完成', cancelled: '已取消' }[run.status] || run.status;
-  $('#progTitle').textContent = `${st}：新找到 ${added.length} 位博主`;
+  const st = { ok: '完成', partial: '部分完成', failed: '没有完成', cancelled: '已停止' }[run.status] || run.status;
+  $('#progTitle').textContent = `${st}：新找到 ${run.added} 位博主`;
   const rs = Object.entries(run.reject_reasons || {}).map(([k, v]) => `${k} ${v}`).join('，');
-  $('#progLog').insertAdjacentHTML('beforeend', `<li class="${added.length ? 'ok' : 'info'}">${esc(`看了 ${run.candidates} 个候选，留下 ${run.added}，已有的 ${run.duplicates}，不合格 ${run.rejected}${rs ? `（${rs}）` : ''}`)}</li>`);
+  $('#progLog').insertAdjacentHTML('beforeend', `<li class="${run.added ? 'ok' : 'info'}">${esc(`共 ${run.calls} 轮，看了 ${run.candidates} 个候选：新找到 ${run.added}，已有的 ${run.duplicates}，不合格 ${run.rejected}${rs ? `（${rs}）` : ''}`)}</li>`);
   prog.classList.add('done');
   $('#btnCancel').textContent = '收起';
-  if (added.length) { F.scope = 'today'; F.group = 'all'; }
+  if (run.added) { F.scope = 'today'; F.group = 'all'; }
   render();
-  toast(`${st}，新找到 ${added.length} 位`);
-  if (added.length) $('#feedTitle').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  toast(`${st}，新找到 ${run.added} 位`);
+  if (run.added && q.limit) $('#feedTitle').scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
-const stripId = p => { const o = clone(p); delete o.id; delete o.name; o.platforms = ['instagram']; return { countries: o.countries, groups: o.groups, fmin: o.fmin, fmax: o.fmax, camera: o.camera, categories: o.categories, city: o.city || '', limit: o.limit }; };
+const stripId = p => ({ countries: p.countries, groups: p.groups, fmin: p.fmin, fmax: p.fmax, camera: p.camera, categories: p.categories, city: p.city || '', limit: p.limit || 0 });
 
 /* ================= 每天自动找 ================= */
 function autoText() {
@@ -394,6 +409,7 @@ document.addEventListener('click', e => {
   if (d.nav) { go(d.nav); if (d.openFold) setTimeout(() => { const f = $('details.fold'); if (f) { f.open = true; f.scrollIntoView({ block: 'start' }); } }, 50); return; }
   if (d.chip) {
     if (d.chip === 'fans') { const f = FAN_PRESETS.find(x => x.id === d.val); Q.fmin = f.min; Q.fmax = f.max; }
+    else if (d.chip === 'limit') Q.limit = +d.val;
     else { const a = Q[d.chip]; const i = a.indexOf(d.val); if (i >= 0) a.splice(i, 1); else a.push(d.val); }
     renderFinder(); return;
   }
@@ -412,7 +428,7 @@ document.addEventListener('click', e => {
 
   switch (t.id) {
     case 'btnCancel':
-      if (controller) { controller.abort(); $('#progTitle').textContent = '正在取消…'; }
+      if (controller) { controller.abort(); $('#progTitle').textContent = '正在停止，已找到的会保留…'; }
       else $('#progress').hidden = true;
       return;
     case 'btnPresetSave': {
@@ -469,7 +485,7 @@ document.addEventListener('change', e => {
   const t = e.target;
   if (t.matches('select[data-status]')) { patch(t.dataset.status, { status: t.value }); t.className = 'st st-' + t.value; toast('已改为「' + STATUS_ZH[t.value] + '」'); if (currentView === 'list') renderList(); renderChrome(); return; }
   if (t.id === 'presetSel') { loadPreset(t.value); return; }
-  if (['qCam', 'qLife', 'qCity', 'qLimit'].includes(t.id)) { readInputs(); updateHint(); return; }
+  if (['qCam', 'qLife', 'qCity'].includes(t.id)) { readInputs(); updateHint(); return; }
   if (t.id === 'autoOn') {
     settings.auto.enabled = t.checked;
     if (t.checked) {   // 用当前条件；如果改过条件，自动存成一个常用条件
