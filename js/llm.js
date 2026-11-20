@@ -155,10 +155,37 @@ async function callChat(cfg, { system, user, search, maxTokens, signal }) {
   return out;
 }
 
+/* ---------- 本机 Codex（通过 bridge/scout_codex_bridge.py） ---------- */
+export const CODEX_URL = 'http://127.0.0.1:43219';
+async function codexFetch(path, cfg, body, signal) {
+  let r;
+  try {
+    r = await fetch(CODEX_URL + path, {
+      method: 'POST', signal,
+      headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + cfg.codexToken },
+      body: JSON.stringify(body || {}),
+    });
+  } catch (e) {
+    if (e.name === 'AbortError') throw e;
+    throw new LLMError('连不上本机 Codex。请确认连接程序的窗口还开着；如果浏览器问是否允许访问本地网络，请选允许。', 'network');
+  }
+  let d = null; try { d = await r.json(); } catch (e) {}
+  if (r.status === 401) throw new LLMError('本机 Codex 的配对已过期，请在设置里重新「一键连接」。', 'auth');
+  if (r.status === 409) throw new LLMError('Codex 正在处理上一个请求，请稍等。', 'rate');
+  if (!r.ok) throw new LLMError((d && d.error) || ('本机 Codex 返回 ' + r.status), 'http');
+  return d || {};
+}
+export async function codexStatus(cfg, signal) { return codexFetch('/status', cfg, {}, signal); }
+async function callCodex(cfg, { system, user, search, signal }) {
+  const d = await codexFetch('/ask', cfg, { prompt: system + '\n\n' + user, search: !!search }, signal);
+  return { text: d.text || '', sources: d.sources || [], usage: { input: 0, output: 0, searches: search ? 1 : 0 } };
+}
+
 /* ---------- 对外接口 ---------- */
 export function checkConfig(cfg) {
   const p = PROVIDERS[cfg.provider];
   if (!p) return '请先在设置里选择模型服务商';
+  if (p.api === 'codex') return cfg.codexToken ? '' : '请先在设置里连接本机 Codex';
   if (!cfg.apiKey) return '请先在设置里填写模型 API Key';
   if (!cfg.baseUrl) return '请先在设置里填写接口地址';
   if (!cfg.model) return '请先在设置里填写模型名';
@@ -169,6 +196,7 @@ export function checkConfig(cfg) {
 export async function callLLM(cfg, opts) {
   const p = PROVIDERS[cfg.provider];
   const o = Object.assign({ maxTokens: 6000, search: false }, opts);
+  if (p.api === 'codex') return callCodex(cfg, o);
   if (p.api === 'messages') return callMessages(cfg, o);
   if (p.api === 'responses') return callResponses(cfg, o);
   return callChat(cfg, o);
