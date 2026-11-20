@@ -78,14 +78,23 @@ function renderFinder() {
   $('#chipFans').innerHTML = FAN_PRESETS.map(f => chip('fans', f.id, f.label, f.id === fid)).join('');
   $('#qCam').checked = Q.camera === 'require';
   $('#qLife').checked = (Q.categories || []).length > 0;
-  $('#chipLimit').innerHTML = LIMITS.map(l => chip('limit', l.v, l.label, (Q.limit || 0) === l.v)).join('');
+  const preset = LIMITS.some(l => l.v === (Q.limit || 0));
+  $('#chipLimit').innerHTML = LIMITS.map(l => chip('limit', l.v, l.label, preset && (Q.limit || 0) === l.v)).join('');
+  if (document.activeElement !== $('#qLimitCustom')) $('#qLimitCustom').value = preset ? '' : Q.limit;
+  $('.num-in').classList.toggle('on', !preset);
   $('#qCity').value = Q.city || '';
   $('#presetSel').innerHTML = presets.map(p => `<option value="${esc(p.id)}"${p.id === settings.activePresetId ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   $('#autoOn').checked = !!settings.auto.enabled;
   $('#autoDesc').textContent = autoText();
   updateHint();
 }
+function memoryLine() {
+  const seenN = store.seen().length;
+  const total = creators.length + seenN;
+  $('#memoryLine').innerHTML = total ? `已记住 <b>${total}</b> 个账号（找到的 ${creators.length} · 不再推荐 ${seenN}），搜索时会自动跳过，不会重复。<button type="button" data-nav="list" data-list-tab="skip">查看</button>` : '';
+}
 function updateHint() {
+  memoryLine();
   const err = checkConfig(llmConfig());
   const n = Q.countries.length * Q.groups.length;
   $('#searchHint').textContent = err ? err : !n ? '至少选一个国家和一种人' : !Q.limit
@@ -245,17 +254,30 @@ function renderFeed() {
 
 /* ================= 我的名单 ================= */
 function renderList() {
-  const tabs = [{ key: 'all', zh: '全部' }].concat(STATUSES);
-  const count = k => k === 'all' ? creators.filter(c => c.status !== 'dropped').length : creators.filter(c => c.status === k).length;
+  const seen = store.seen();
+  const tabs = [{ key: 'all', zh: '全部' }].concat(STATUSES, [{ key: 'skip', zh: '不再推荐' }]);
+  const count = k => k === 'all' ? creators.filter(c => c.status !== 'dropped').length : k === 'skip' ? seen.length + creators.filter(c => c.status === 'dropped').length : creators.filter(c => c.status === k).length;
   $('#listTabs').innerHTML = tabs.map(t => `<button type="button" class="tab" role="tab" data-tab="${t.key}" aria-selected="${t.key === listTab}">${t.zh}<span>${count(t.key)}</span></button>`).join('');
-  const list = creators.filter(c => listTab === 'all' ? c.status !== 'dropped' : c.status === listTab).sort((a, b) => new Date(b.updated_at || b.found_at) - new Date(a.updated_at || a.found_at));
-  $('#rows').innerHTML = list.length ? list.map(c => `<div class="row">${avatar(c, false, 44)}
-    <div style="min-width:0"><button type="button" class="handle" data-open="${esc(c.id)}" style="font-size:14px">${esc(c.username)}</button>
-    <div class="sub">${esc(groupName(c.group))} · ${esc(c.city || countryName(c.country))} · ${fmtNum(c.followers)} 粉丝</div></div>
-    ${statusSelect(c)}${c.notes ? `<div class="note" title="${esc(c.notes)}">备注：${esc(c.notes)}</div>` : ''}</div>`).join('')
-    : `<div class="empty" style="margin-top:12px"><b>这里还没有人</b>在「找博主」里点「收藏」，博主就会出现在这里。</div>`;
-  const st = { ok: ['完成', 'ok'], partial: ['部分完成', 'partial'], failed: ['没有完成', 'failed'], cancelled: ['已取消', 'partial'] };
-  $('#runs').innerHTML = runs.length ? runs.slice(0, 8).map(r => { const s = st[r.status] || [r.status, 'partial']; return `<div class="run"><span class="pill ${s[1]}">${s[0]}</span><span>${fmtWhen(r.started_at)}</span><span>${r.trigger === 'auto' ? '自动' : '手动'} · ${esc(r.preset)}</span><b>新增 ${r.added}</b><span class="hint">${esc(r.model || '')}${(r.errors || []).length ? ' · ' + esc(r.errors[0]) : ''}</span></div>`; }).join('') : '<p class="hint">还没有查找记录。</p>';
+  if (listTab === 'skip') {
+    const dropped = creators.filter(c => c.status === 'dropped');
+    const rows = dropped.map(c => ({ username: c.username, platform: c.platform, group: c.group, reason: '你标记了不合适', id: c.id }))
+      .concat(seen.slice().reverse().map(x => ({ username: x.username, platform: x.platform || 'instagram', group: x.group, reason: x.reason || '看过' })));
+    $('#rows').innerHTML = `<p class="hint" style="margin:10px 4px">这些账号搜索时会自动跳过。点「恢复」可以让它以后重新出现。</p>` + (rows.length ? rows.map(r => `<div class="row">
+      <span class="av" style="--s:36px"><span class="av-in" style="--h:${hash(r.platform + ':' + r.username) % 360}">${esc(r.username.charAt(0).toUpperCase())}</span></span>
+      <div style="min-width:0"><a class="handle" style="font-size:14px;text-decoration:none" href="${esc(PLATFORMS[r.platform] ? PLATFORMS[r.platform].url(r.username) : '#')}" target="_blank" rel="noopener">${esc(r.username)}</a>
+      <div class="sub">${r.group && r.group !== '*' ? esc(groupName(r.group)) + ' · ' : ''}<span class="reason">${esc(r.reason)}</span></div></div>
+      <button type="button" class="ghost" ${r.id ? `data-undrop="${esc(r.id)}"` : `data-unseen="${esc(r.platform + ':' + r.username)}"`}>恢复</button></div>`).join('')
+      : `<div class="empty" style="margin-top:12px"><b>还没有</b>不合格的账号、你标记「不合适」的博主、以及你导入的已有账号会出现在这里。</div>`);
+  } else {
+    const list = creators.filter(c => listTab === 'all' ? c.status !== 'dropped' : c.status === listTab).sort((a, b) => new Date(b.updated_at || b.found_at) - new Date(a.updated_at || a.found_at));
+    $('#rows').innerHTML = list.length ? list.map(c => `<div class="row">${avatar(c, false, 44)}
+      <div style="min-width:0"><button type="button" class="handle" data-open="${esc(c.id)}" style="font-size:14px">${esc(c.username)}</button>
+      <div class="sub">${esc(groupName(c.group))} · ${esc(c.city || countryName(c.country))} · ${fmtNum(c.followers)} 粉丝</div></div>
+      ${statusSelect(c)}${c.notes ? `<div class="note" title="${esc(c.notes)}">备注：${esc(c.notes)}</div>` : ''}</div>`).join('')
+      : `<div class="empty" style="margin-top:12px"><b>这里还没有人</b>在「找博主」里点「收藏」，博主就会出现在这里。</div>`;
+  }
+  const st = { ok: ['完成', 'ok'], partial: ['部分完成', 'partial'], failed: ['没有完成', 'failed'], cancelled: ['已停止', 'partial'] };
+  $('#runs').innerHTML = runs.length ? runs.slice(0, 8).map(r => { const s = st[r.status] || [r.status, 'partial']; return `<div class="run"><span class="pill ${s[1]}">${s[0]}</span><span>${fmtWhen(r.started_at)}</span><span>${r.trigger === 'auto' ? '自动' : '手动'} · ${esc(r.preset)}</span><b>新增 ${r.added}</b><span class="hint">跳过重复 ${r.duplicates || 0}${(r.errors || []).length ? ' · ' + esc(r.errors[0]) : ''}</span></div>`; }).join('') : '<p class="hint">还没有查找记录。</p>';
 }
 function statusSelect(c) {
   return `<select class="st st-${c.status}" data-status="${esc(c.id)}" aria-label="${esc(c.username)} 的跟进状态">${STATUSES.map(s => `<option value="${s.key}"${s.key === c.status ? ' selected' : ''}>${s.zh}</option>`).join('')}</select>`;
@@ -406,10 +428,11 @@ document.addEventListener('click', e => {
   const t = e.target.closest('button, a[data-nav], [data-close]');
   if (!t) return;
   const d = t.dataset;
+  if (d.listTab) listTab = d.listTab;
   if (d.nav) { go(d.nav); if (d.openFold) setTimeout(() => { const f = $('details.fold'); if (f) { f.open = true; f.scrollIntoView({ block: 'start' }); } }, 50); return; }
   if (d.chip) {
     if (d.chip === 'fans') { const f = FAN_PRESETS.find(x => x.id === d.val); Q.fmin = f.min; Q.fmax = f.max; }
-    else if (d.chip === 'limit') Q.limit = +d.val;
+    else if (d.chip === 'limit') { Q.limit = +d.val; $('#qLimitCustom').value = ''; }
     else { const a = Q[d.chip]; const i = a.indexOf(d.val); if (i >= 0) a.splice(i, 1); else a.push(d.val); }
     renderFinder(); return;
   }
@@ -420,6 +443,8 @@ document.addEventListener('click', e => {
   if (d.save) { const c = creators.find(x => x.id === d.save); const on = c.status === 'new'; patch(d.save, { status: on ? 'saved' : 'new' }); renderFeed(); renderChrome(); toast(on ? '已收藏，在「我的名单」里跟进' : '已取消收藏'); return; }
   if (d.drop) { patch(d.drop, { status: 'dropped' }); renderFeed(); toast('已标记不合适，不再显示'); return; }
   if (d.tab) { listTab = d.tab; renderList(); return; }
+  if (d.undrop) { patch(d.undrop, { status: 'new' }); renderList(); toast('已恢复，会重新出现在「找博主」里'); return; }
+  if (d.unseen) { const [pf, ...u] = d.unseen.split(':'); store.removeSeen(pf, u.join(':')); renderList(); toast('已恢复，以后搜索可能再次推荐'); return; }
   if (d.setstatus && openId) { patch(openId, { status: d.setstatus }); $$('[data-setstatus]').forEach(b => b.setAttribute('aria-pressed', String(b === t))); toast('已改为「' + STATUS_ZH[d.setstatus] + '」'); return; }
   if (d.del) { if (!t.dataset.armed) { t.dataset.armed = '1'; t.textContent = '再点一次确认删除'; return; } creators = creators.filter(c => c.id !== d.del); persist(); closeModal(); toast('已删除'); return; }
   if (d.os) { os = d.os; renderSettings(); return; }
@@ -446,6 +471,13 @@ document.addEventListener('click', e => {
       delete t.dataset.armed; t.textContent = '删除'; loadPreset(presets[0].id); return;
     }
     case 'btnCsv': { const list = creators.filter(c => listTab === 'all' ? c.status !== 'dropped' : c.status === listTab); textDialog(`导出 ${list.length} 位博主`, '可以直接用 Excel 或 Google 表格打开。', csv(list), `scout-${dayKey(new Date())}.csv`, 'text/csv'); return; }
+    case 'btnImportKnown':
+      $('#mBody').innerHTML = `<form class="m-in" id="knownForm"><h2 style="font-size:17px">导入已有账号</h2>
+        <p class="hint" style="margin:0">把你以前已经找过、联系过或合作过的 Instagram 账号粘贴进来，一行一个（用户名或主页链接都行）。以后搜索会自动跳过它们。</p>
+        <textarea id="knownText" style="min-height:160px" placeholder="nadiaputri.mel&#10;@rizky.disydney&#10;https://www.instagram.com/someone/"></textarea>
+        <div class="form"><label for="knownReason">备注（可选）</label><input id="knownReason" placeholder="例如：去年合作过"></div>
+        <div class="row-btns"><button type="submit" class="btn-blue">导入</button></div></form>`;
+      showModal(); setTimeout(() => $('#knownText') && $('#knownText').focus(), 30); return;
     case 'btnCopyCmd': copy(bridgeCmd(), $('#cmdText')); return;
     case 'btnCodexTest':
       if (!secrets.codexToken) { setMsg('codexMsg', '还没配对，请先点「一键连接 Codex」。', 'bad'); return; }
@@ -474,6 +506,15 @@ document.addEventListener('click', e => {
 document.addEventListener('submit', e => {
   e.preventDefault();
   if (e.target.id === 'finder') { doSearch('manual'); return; }
+  if (e.target.id === 'knownForm') {
+    const names = $('#knownText').value.split(/[\s,，]+/).map(x => x.trim()).filter(Boolean)
+      .map(x => { const m = x.match(/instagram\.com\/([A-Za-z0-9._]+)/i); return (m ? m[1] : x).replace(/^@/, '').toLowerCase(); })
+      .filter(x => /^[a-z0-9._]{1,30}$/.test(x));
+    const reason = $('#knownReason').value.trim() || '你导入的已有账号';
+    store.addSeen(names.map(u => ({ platform: 'instagram', username: u, group: null, reason })));
+    closeModal(); listTab = 'skip'; renderList(); toast(`已导入 ${names.length} 个账号，以后不会再推荐`);
+    return;
+  }
   if (e.target.id === 'presetForm') {
     const name = $('#presetName').value.trim() || `我的条件 ${presets.length + 1}`;
     const p = Object.assign(clone(Q), { id: 'p-' + Date.now().toString(36), name });
@@ -486,6 +527,7 @@ document.addEventListener('change', e => {
   if (t.matches('select[data-status]')) { patch(t.dataset.status, { status: t.value }); t.className = 'st st-' + t.value; toast('已改为「' + STATUS_ZH[t.value] + '」'); if (currentView === 'list') renderList(); renderChrome(); return; }
   if (t.id === 'presetSel') { loadPreset(t.value); return; }
   if (['qCam', 'qLife', 'qCity'].includes(t.id)) { readInputs(); updateHint(); return; }
+  if (t.id === 'qLimitCustom') { const v = parseInt(t.value, 10); if (isFinite(v) && v > 0) { Q.limit = Math.min(500, v); } else { Q.limit = 10; } renderFinder(); return; }
   if (t.id === 'autoOn') {
     settings.auto.enabled = t.checked;
     if (t.checked) {   // 用当前条件；如果改过条件，自动存成一个常用条件
@@ -522,6 +564,7 @@ document.addEventListener('change', e => {
 });
 let noteT;
 document.addEventListener('input', e => {
+  if (e.target.id === 'qLimitCustom') { const v = parseInt(e.target.value, 10); if (isFinite(v) && v > 0) { Q.limit = Math.min(500, v); $$('[data-chip=limit]').forEach(b => b.setAttribute('aria-pressed', 'false')); $('.num-in').classList.add('on'); updateHint(); } }
   if (e.target.id === 'mNotes' && openId) { const id = openId, v = e.target.value; clearTimeout(noteT); noteT = setTimeout(() => { patch(id, { notes: v }); toast('备注已保存'); }, 600); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden) closeModal(); });

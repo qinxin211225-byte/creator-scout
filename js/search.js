@@ -184,7 +184,7 @@ export async function runSearch({ q, cfg, groups, countries, existing, seen = []
     remember(c.platform, c.username, c.group);
     for (const a of c.linked_accounts || []) remember(a.platform, a.username, c.group);
   }
-  for (const s of seen) remember(s.platform || 'instagram', s.username, s.group);
+  for (const s of seen) remember(s.platform || 'instagram', s.username, s.group || '*');
 
   const gById = Object.fromEntries(groups.map(g => [g.id, g]));
   const cByCode = Object.fromEntries(countries.map(c => [c.code, c]));
@@ -192,9 +192,9 @@ export async function runSearch({ q, cfg, groups, countries, existing, seen = []
   for (const cc of q.countries) for (const gid of q.groups) if (cByCode[cc] && gById[gid]) combos.push([cByCode[cc], gById[gid]]);
   if (!combos.length) throw new Error('请至少选一个国家和一种人');
 
-  const rounds = unlimited ? 24 : Math.max(1, Math.ceil(limit / Math.max(1, combos.length * 2)) + 1);
-  const tasks = planTasks(shuffle(combos), q, coverage, rounds);
-  const maxCalls = unlimited ? tasks.length : Math.min(tasks.length, Math.max(2, Math.ceil(limit / 2) + 2));
+  // 指定数量时也一直换城市、换搜法，直到找满；连续几轮没新人就停（见 dryLimit）
+  const tasks = planTasks(shuffle(combos), q, coverage, 24);
+  const maxCalls = tasks.length;
   const dryLimit = unlimited ? Math.max(6, combos.length * 3) : Math.max(4, combos.length + 2);
   let dry = 0, failStreak = 0, added = 0;
   const comboDry = {};
@@ -208,7 +208,7 @@ export async function runSearch({ q, cfg, groups, countries, existing, seen = []
     run.combos.push(`${label}（${angle.zh}）`);
     const n = unlimited ? 8 : Math.min(8, Math.max(3, Math.ceil((limit - added) * 1.5)));
     log(`正在搜索：${label} · ${angle.zh}（第 ${run.calls + 1} 轮）`, 'step');
-    const exclude = Array.from(byGroup[group.id] || []).slice(-150);
+    const exclude = Array.from(byGroup[group.id] || []).slice(-150).concat(Array.from(byGroup['*'] || []).slice(-50));
     let res;
     try {
       run.calls++;

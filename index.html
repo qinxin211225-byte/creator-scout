@@ -46,7 +46,8 @@
           <div class="q"><span class="qk">在哪</span><div class="chips" id="chipCountries"></div></div>
           <div class="q"><span class="qk">什么人</span><div class="chips" id="chipGroups"></div></div>
           <div class="q"><span class="qk">粉丝</span><div class="chips" id="chipFans"></div></div>
-          <div class="q"><span class="qk">找多少</span><div class="chips" id="chipLimit"></div></div>
+          <div class="q"><span class="qk">找多少</span><div class="chips"><span class="chips" id="chipLimit"></span>
+            <label class="num-in" for="qLimitCustom"><input id="qLimitCustom" type="number" min="1" max="500" inputmode="numeric" placeholder="自己填"><span>位</span></label></div></div>
           <div class="q"><span class="qk">要求</span>
             <div class="chips">
               <label class="sw" for="qCam"><input type="checkbox" id="qCam" role="switch"><span class="tr" aria-hidden="true"></span>只要真人出镜</label>
@@ -72,6 +73,7 @@
             </button>
             <span class="hint" id="searchHint"></span>
           </div>
+          <p class="memory" id="memoryLine"></p>
 
           <div class="progress" id="progress" hidden aria-live="polite">
             <span class="ring-spin" aria-hidden="true"><span></span></span>
@@ -104,7 +106,7 @@
       <section class="view" id="view-list" aria-labelledby="h-list" hidden>
         <div class="page-head">
           <h1 id="h-list">我的名单</h1>
-          <button type="button" class="ghost" id="btnCsv">导出 CSV</button>
+          <div class="row-btns" style="margin:0"><button type="button" class="ghost" id="btnImportKnown">导入已有账号</button><button type="button" class="ghost" id="btnCsv">导出 CSV</button></div>
         </div>
         <div class="tabs" role="tablist" id="listTabs"></div>
         <div class="rows" id="rows"></div>

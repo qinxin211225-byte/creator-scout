@@ -42,9 +42,10 @@ export const store = {
     if (!items.length) return;
     const all = read(L(), K.seen, []);
     const keys = new Set(all.map(x => x.platform + ':' + x.username));
-    for (const it of items) if (!keys.has(it.platform + ':' + it.username)) { all.push(it); keys.add(it.platform + ':' + it.username); }
+    for (const it of items) if (!keys.has(it.platform + ':' + it.username)) { all.push(Object.assign({ at: new Date().toISOString() }, it)); keys.add(it.platform + ':' + it.username); }
     write(L(), K.seen, all.slice(-5000));
   },
+  removeSeen(platform, username) { write(L(), K.seen, read(L(), K.seen, []).filter(x => !(x.platform === platform && x.username === username))); },
   // 每个“国家|人群|城市”上次搜索的时间，下次优先搜没搜过的城市
   coverage: () => read(L(), K.coverage, {}),
   touchCoverage(key) { const c = read(L(), K.coverage, {}); const v = c[key]; c[key] = [Date.now(), (Array.isArray(v) ? v[1] : v ? 1 : 0) + 1]; write(L(), K.coverage, c); },
