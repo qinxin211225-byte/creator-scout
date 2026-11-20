@@ -42,7 +42,12 @@ function buildPrompt({ country, group, q, n, exclude }) {
 - 出镜要求：${CAMERA[q.camera] || '不限'}
 - 优先内容类别：${cats}
 ${exclude.length ? `- 这些账号已经找到过，不要再返回：${exclude.join(', ')}\n` : ''}
-搜索建议：用识别线索里的关键词，加上城市名；也可以用 ${sites} 加关键词搜索；从合格博主的合作对象、相似账号继续找。
+搜索建议（按效果排序）：
+1. 达人合作平台的公开页面常写着所在城市、人群和粉丝数，最好找：site:collabstr.com、site:joinbrands.com 加“${group.name}/英文人群名 + 城市名 + lifestyle”。
+2. 识别线索里的关键词加城市名；也可以用 ${sites} 加关键词。
+3. 媒体或博客的“某城市某国移民博主推荐”文章。
+4. 从合格博主的合作对象、相似账号继续找。
+注意：很多结果是住在本国的博主（比如住在菲律宾的菲律宾博主），必须确认是常住在${country.name}的才返回。username 必须是 Instagram 用户名。
 
 输出格式（字段名不要改）：
 {"creators":[{
