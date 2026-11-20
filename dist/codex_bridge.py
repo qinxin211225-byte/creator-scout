@@ -2,6 +2,7 @@
 """博主雷达本机 Codex 桥接。Python 3.9+，使用当前用户已登录的 Codex CLI。"""
 import argparse
 import hmac
+from html import escape
 import json
 import mimetypes
 import os
@@ -117,6 +118,7 @@ class Bridge(ThreadingHTTPServer):
 
     def __init__(self, origin, executable, ui_dir=None):
         super().__init__((HOST, PORT), Handler)
+        self.origin = origin
         self.origins = {origin}
         self.ui_dir = ui_dir
         if ui_dir:
@@ -151,6 +153,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Frame-Options", "DENY")
         self.end_headers()
         if data:
             self.wfile.write(data)
@@ -220,6 +223,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.valid_host():
             return
+        if self.path == "/connect":
+            if time.monotonic() >= self.server.expires:
+                return self.respond(410, "连接已过期。请重启连接程序后再试。".encode(), "text/plain; charset=utf-8")
+            origin = escape(self.server.origin, quote=True)
+            url = origin + "/#settings?pair=" + self.server.token
+            page = (f'<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
+                    f'<title>连接本机 Codex</title><main style="max-width:40rem;margin:12vh auto;padding:24px;font:18px system-ui">'
+                    f'<h1>连接本机 Codex</h1><p>允许此网站使用你电脑上的 Codex：</p><p>{origin}</p>'
+                    f'<a href="{url}" rel="noreferrer">确认连接并返回网站</a></main></html>')
+            return self.respond(200, page.encode(), "text/html; charset=utf-8")
         root = self.server.ui_dir
         if root:
             relative = unquote(urlsplit(self.path).path).lstrip("/") or "index.html"

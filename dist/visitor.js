@@ -79,7 +79,8 @@ window.ScoutVisitor = (() => {
     el('country').onchange=changeCountry;
     el('mode').onchange=()=>el('materialField').hidden=el('mode').value!=='material';
     changeCountry(); modelsChanged();
-    if (location.origin === 'http://127.0.0.1:43219' && location.hash.startsWith('#settings?pair=')) {
+    el('connectCodex').onclick=()=>location.assign('http://127.0.0.1:43219/connect');
+    if (location.hash.startsWith('#settings?pair=')) {
       const pair = new URLSearchParams(location.hash.slice('#settings?'.length)).get('pair');
       history.replaceState(null, '', '#settings');
       if (/^[A-Za-z0-9_-]{43}$/.test(pair || '')) {

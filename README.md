@@ -10,7 +10,7 @@
 
 ## 使用访客自己的 Codex
 
-在自己的电脑安装 Codex CLI 和 Python 3.9+，使用 `codex login` 登录。网页「本机 Codex」提供桥接程序下载及带站点来源的启动命令。在下载目录执行命令，将终端显示的配对码填回页面。配对码一小时有效，按 Ctrl+C 断开连接。浏览器询问本地网络访问时允许这个站点访问本机桥接。CLI 需要支持 exec、--json、--ephemeral、--ignore-user-config 与只读沙箱等选项。Windows 需要受所用 Codex CLI 支持的执行环境。
+在自己的电脑安装 Codex CLI 和 Python 3.9+，使用 `codex login` 登录。网页「本机 Codex」提供桥接程序下载及带站点来源的启动命令。在下载目录执行命令，在网页点击「一键连接 Codex」，然后在本机页面确认。手动输入配对码也可配对。配对码一小时有效，按 Ctrl+C 断开连接。浏览器询问本地网络访问时允许这个站点访问本机桥接。CLI 需要支持 exec、--json、--ephemeral、--ignore-user-config 与只读沙箱等选项。Windows 需要受所用 Codex CLI 支持的执行环境。
 
 如果浏览器限制网站访问本机，下载并解压完整源码，在项目根目录运行以下命令，在本机同源工作台进行配对。它使用该本机地址的浏览器存储。
 

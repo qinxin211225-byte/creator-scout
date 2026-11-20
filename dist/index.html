@@ -377,9 +377,14 @@ code{background:var(--hair);border-radius:4px;padding:1px 5px}
             <label id="keyField" hidden>API Key<input id="key" type="password" autocomplete="off" spellcheck="false"></label>
             <label id="braveField" hidden>Brave Search Key（联网发现时使用）<input id="searchKey" type="password" autocomplete="off"></label>
           </div>
-          <div id="bridgeHelp"><p>在自己的电脑上登录 Codex CLI，下载并运行连接程序。它会在终端显示配对码。</p>
-            <p><a download="codex_bridge.py" href="./codex_bridge.py">下载本机连接程序</a></p><pre id="bridgeCmd"></pre>
-            <label>配对码<input id="token" type="password" autocomplete="off"></label>
+          <div id="bridgeHelp">
+            <button class="btn" id="connectCodex">一键连接 Codex</button>
+            <p class="muted">连接程序运行后，点击上方按钮并确认即可。</p>
+            <details><summary>首次使用或无法连接</summary>
+              <p>确保已登录 Codex CLI。下载连接程序，在下载目录运行下面的命令，并保持窗口开启。</p>
+              <p><a download="codex_bridge.py" href="./codex_bridge.py">下载本机连接程序</a></p><pre id="bridgeCmd"></pre>
+              <label>备用方式 · 手动填写配对码<input id="token" type="password" autocomplete="off"></label>
+            </details>
           </div>
           <p id="keyHint" class="muted"></p>
           <button class="btn sec" id="checkModel">测试连接</button>
