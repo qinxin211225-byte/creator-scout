@@ -1,7 +1,7 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js';
-import { store } from './store.js';
-import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js';
-import { runSearch } from './search.js';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.2';
+import { store } from './store.js?v=0.3.2';
+import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.2';
+import { runSearch } from './search.js?v=0.3.2';
 
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
@@ -111,6 +111,10 @@ function readInputs() {
 
 /* ================= 搜索 ================= */
 async function doSearch(trigger, preset) {
+  try { await doSearchInner(trigger, preset); }
+  catch (e) { controller = null; showFatal(e.message || String(e)); }
+}
+async function doSearchInner(trigger, preset) {
   if (controller) { toast('已经在搜索了'); return; }
   const cfg = llmConfig();
   const err = checkConfig(cfg);
@@ -573,7 +577,21 @@ window.addEventListener('beforeunload', e => { if (controller) { e.preventDefaul
 // 从连接程序确认页切回来时，刷新连接状态
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { secrets = store.secrets(); settings = store.settings(); renderChrome(); } });
 
+/* ================= 出错保护 ================= */
+// 任何意外错误都显示出来，并把搜索按钮恢复，不会一直转圈
+function showFatal(msg) {
+  banner('出了点问题：' + msg + '。请按 Cmd/Ctrl + Shift + R 强制刷新；还不行就把这句话截图发到 GitHub Issues。', '', '');
+  if (!controller) { const p = $('#progress'); if (p && !p.hidden && !p.classList.contains('done')) { p.classList.add('done'); $('#progTitle').textContent = '搜索没有完成'; $('#btnCancel').textContent = '收起'; } $('#btnSearch').disabled = false; $('#btnSearchTxt').textContent = '搜索'; }
+}
+window.addEventListener('error', e => showFatal(e.message || '页面脚本错误'));
+window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reason.message) || String(e.reason)));
+
 /* ================= 启动 ================= */
+// 网页和程序文件版本不一致（浏览器缓存了旧文件）时，提示刷新
+const htmlVer = (document.querySelector('meta[name="scout-version"]') || {}).content;
+if (htmlVer && htmlVer !== VERSION) {
+  document.body.insertAdjacentHTML('afterbegin', `<div class="banner" style="margin:12px">网页刚更新过，浏览器还在用旧文件。<button type="button" onclick="location.reload()">刷新一下</button></div>`);
+}
 $('#ver').textContent = VERSION;
 $('#repoLink').href = REPO_URL;
 loadPreset(settings.activePresetId);
