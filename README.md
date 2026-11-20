@@ -1,34 +1,140 @@
-# 博主雷达
+# Scout · 开源找博主工作台
 
-在浏览器连接自己的模型，查找公开创作者、记录跟进状态和备注、导出 CSV。访客各用自己的额度，工作台没有共享管理员密码。
+**[👉 打开网页直接使用](https://qinxin211225-byte.github.io/creator-scout/)**　|　[English](#english)
 
-## 开始使用
+Scout 是一个找海外博主（KOL / 达人）的工作台。填上你自己的大模型 API Key，选好国家、人群、平台、粉丝区间和是否出镜，点「搜索」，AI 会联网帮你找到符合条件的个人博主，并整理成可以跟进的名单。
 
-打开网站，选择「模型连接」。OpenAI 支持带来源的联网搜索。DeepSeek 和支持 Chat Completions 的 HTTPS 服务可以直接审核粘贴的公开资料；如果希望自动联网找账号，需要额外填写自己的 Brave Search Key。先测试文本连接，再开始查找。模型返回的资料还要通过粉丝数、发帖日期和来源链接校验，搜索结果可能为空。
+- **不用安装，不用注册**：打开网页就能用，手机和电脑都可以。
+- **数据只在你的浏览器里**：找到的博主、跟进备注、API Key 都保存在你自己的电脑上，不会上传到任何服务器。
+- **用你自己的模型额度**：支持 DeepSeek、Claude、OpenAI，以及通义千问、Kimi、智谱等 OpenAI 兼容接口。
+- **自动更新**：项目更新后，刷新网页就是最新版，你的数据不受影响。
 
-在线 Worker 将 OpenAI、DeepSeek 和 Brave 请求转发到对应的固定官方地址。密钥由浏览器随请求提交，应用不持久化密钥，也不记录请求内容。自定义服务的模型密钥直接发送到访客填入的地址，该服务须允许浏览器跨域访问。关闭或刷新页面后需重新输入密钥。账号、运行记录和跟进备注存在当前浏览器的站点存储中；不同浏览器配置文件各自独立，同一浏览器配置文件的使用者共享工作台。清除站点数据会清除记录。
+---
 
-## 使用访客自己的 Codex
+## 三步开始
 
-在自己的电脑安装 Codex CLI 和 Python 3.9+，使用 `codex login` 登录。网页「本机 Codex」提供桥接程序下载及带站点来源的启动命令。在下载目录执行命令，在网页点击「一键连接 Codex」，然后在本机页面确认。手动输入配对码也可配对。配对码一小时有效，按 Ctrl+C 断开连接。浏览器询问本地网络访问时允许这个站点访问本机桥接。CLI 需要支持 exec、--json、--ephemeral、--ignore-user-config 与只读沙箱等选项。Windows 需要受所用 Codex CLI 支持的执行环境。
+1. **打开网页**：点上面的链接。
+2. **连接模型**：进入「设置」，选服务商（推荐 DeepSeek，自带联网搜索，搜索不另收费），填上 API Key，点「测试连接」。
+3. **开始搜索**：回到「发现博主」，选条件，点「搜索」。按钮会一直转圈，直到找完为止，进度会实时显示。
 
-如果浏览器限制网站访问本机，下载并解压完整源码，在项目根目录运行以下命令，在本机同源工作台进行配对。它使用该本机地址的浏览器存储。
+## 功能
 
-```sh
-python3 dist/codex_bridge.py --origin http://127.0.0.1:43219 --ui-dir dist --connect
+| 功能 | 说明 |
+|---|---|
+| 条件搜索 | 国家、人群、城市、平台（Instagram / TikTok / YouTube）、粉丝区间、出镜要求（必须 / 优先 / 不限）、优先内容类别、本次数量 |
+| 条件模板 | 把常用条件存成模板，一键切换 |
+| 自动查找 | 打开开关后，每天第一次打开网页时自动按指定模板找一轮。网页关着时不会运行 |
+| 博主卡片 | 粉丝数、人群匹配度、是否本人出镜、优先分，以及 AI 的判断依据和来源链接 |
+| 跟进看板 | 待看 → 收藏 → 已联系 → 已回复 → 合作 / 放弃，可写备注 |
+| 去重 | 已经找到过的账号不会重复出现 |
+| 查找记录 | 每次搜索的候选数、新增数、重复数、失败原因和用量 |
+| 导出 | 导出 CSV（Excel / Google 表格可直接打开）；整个工作台可导出备份、导入恢复 |
+| 可配置 | 人群库、国家和城市都能在设置里增删改 |
+
+## 支持的模型
+
+| 服务商 | 联网搜索 | 说明 |
+|---|---|---|
+| DeepSeek（推荐） | 自带 | 搜索不另收费，只按 token 计费 |
+| Claude（Anthropic） | 自带 | 搜索按次收费 |
+| OpenAI | 自带 | 模型名请填支持 `web_search` 的模型 |
+| 通义千问、Kimi、智谱等 OpenAI 兼容接口 | 需要 [Tavily](https://tavily.com) key | 在设置里选「其他 OpenAI 兼容接口」 |
+
+### 提示「浏览器连不上这个服务」怎么办？
+
+有的服务商不允许网页直接调用（跨域限制）。可以：
+
+1. 换用 DeepSeek / Claude / OpenAI；或者
+2. 部署一个自己的转发程序：把 [`proxy/worker.js`](proxy/worker.js) 部署到 Cloudflare Workers（免费），把地址填进「设置 → 高级：转发地址」。转发程序是你自己的，不保存任何数据；或者
+3. 用 Cloudflare Workers 部署整个网站（见下文），转发会自动生效。
+
+## 准确性说明
+
+- 博主由 AI 联网搜索得到。每张卡片都附有 AI 的判断依据和来源链接，**联系前请点开主页确认**。
+- AI 没在页面上看到确切粉丝数时，卡片会标「粉丝未核实」。
+- 「是否出镜」根据 AI 看到的内容描述判断，可能不准。
+- 粉丝区间、去重、人群匹配度门槛（低于 60% 不收录）由代码检查，不完全依赖 AI。
+
+## 使用须知
+
+- 只收集博主公开展示的信息。
+- 判断人群只依据博主公开的自我介绍、内容语言和标签，**不根据长相、肤色或名字推断族裔**。
+- 请遵守各平台的使用条款和当地隐私法规，不要用于批量私信、骚扰或出售名单。
+- 费用由你选择的模型服务商直接向你收取。
+
+## 部署自己的一份
+
+想改代码或部署到自己的网址，有两种方式：
+
+**GitHub Pages（最简单，免费）**
+
+1. Fork 本仓库。
+2. 仓库 Settings → Pages → Source 选 `Deploy from a branch`，分支选 `main`，目录选 `/ (root)`，保存。
+3. 几分钟后访问 `https://你的用户名.github.io/仓库名/`。
+
+**Cloudflare Workers（自带转发程序，跨域问题自动解决）**
+
+```bash
+npx wrangler login
+npx wrangler deploy
 ```
 
-命令会打开本机工作台并自动填入配对码。保持桥接窗口开启。Codex 联网搜索仅采纳 CLI 搜索事件中可核对的来源；也可以选择「审核我提供的公开资料」。
+部署后网站同域下会有 `/api/proxy`。浏览器直连服务商被拦截时，会自动改走它，用户不用做任何设置。它只转发到白名单里的模型服务商，只接受本站网页的请求，不保存任何数据。
 
-## 自行部署
+**本地开发**
 
-- **Cloudflare Workers**：从项目根目录运行 `npx wrangler login`、`npx wrangler deploy`。仓库内的 wrangler.jsonc 声明了静态目录和模型转发服务。部署无需站主提供模型 Key。
-- **GitHub Pages 或其他静态站点**：部署 dist/ 下的 index.html、visitor.js、models.js 和 codex_bridge.py。纯静态站点直接访问供应商 API，能否成功取决于供应商的 CORS 策略。
-- **本机预览**：在根目录执行 `python3 -m http.server 8000 --directory dist`，打开 http://localhost:8000 。支持 Python 的本机桥接模式见上。
-- **运行适配器测试**：使用 Node 22 或更高版本，执行 `node --test tests/*.test.mjs`。
+网页使用 ES 模块，需要通过本地服务器打开：
 
-访客主动发起任务，浏览器内执行结果审核并保存。没有后台定时任务或跨设备同步。模型文本测试与实际联网搜索分别计入访客供应商账户的使用量。
+```bash
+python3 -m http.server 8000
+# 然后打开 http://localhost:8000
+```
+
+运行测试（需要 Node 22 或更高版本）：
+
+```bash
+node --test tests/*.test.mjs
+```
+
+## 项目结构
+
+```
+index.html        页面结构
+assets/app.css    样式
+js/config.js      默认人群、国家、模板、模型服务商（想改默认值改这里）
+js/store.js       浏览器本地存储
+js/llm.js         各家大模型的调用
+js/search.js      找博主流程：搜索、校验、去重、打分
+js/app.js         界面逻辑
+proxy/worker.js   转发程序（可单独部署成 Cloudflare Worker）
+server/worker.mjs 整站部署到 Cloudflare Workers 时的入口
+tests/            自动化测试
+```
+
+## 参与贡献
+
+欢迎提 Issue 和 Pull Request。比如：新的人群模板、更多平台、更多模型服务商、界面翻译。
 
 ## 许可证
 
-MIT，见 LICENSE。
+[MIT](LICENSE)
+
+---
+
+<a id="english"></a>
+
+## English
+
+**Scout** is an open-source workbench for finding social media creators (KOLs). Bring your own LLM API key, pick countries, audience groups, platforms, follower range and on-camera preference, then hit **Search**. The AI searches the web and returns matching individual creators you can track and follow up with.
+
+- **No install, no sign-up.** Just open the web page.
+- **Your data stays in your browser.** Creators, notes and API keys are stored locally and never sent to any server other than your chosen model provider.
+- **Bring your own model:** DeepSeek (recommended, built-in web search), Claude, OpenAI, or any OpenAI-compatible API plus a Tavily search key.
+- **Auto search:** optionally run one search per day the first time you open the page.
+- **Always up to date:** refresh the page to get the latest version.
+
+**Quick start:** open the page → Settings → choose a provider and paste your API key → Test → go back to Discover, choose filters, click Search.
+
+**Please use responsibly:** only public information is collected; audience groups are inferred only from creators' self-descriptions, content language and hashtags, never from appearance. Follow each platform's terms and local privacy laws.
+
+License: MIT.
