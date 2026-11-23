@@ -43,7 +43,12 @@ python3 ~/.scout/scout_codex_bridge.py --site … --reset   # 作废旧配对，
 
 后台服务：Mac 用 launchd（`~/Library/LaunchAgents/com.scout.codexbridge.plist`），Linux 用 systemd 用户服务，Windows 用「启动」文件夹。日志在 `~/.scout/bridge.log`。
 
-安全说明：连接程序只监听本机 `127.0.0.1:43219`，只接受 `--site` 指定网站的请求，必须带配对码（保存在 `~/.scout/codex_bridge_token`，只有你能读）；Codex 以只读沙箱运行，禁用命令执行、插件和应用，只做网页搜索和文字分析；不记录请求内容。如果你的 Codex CLI 版本不认识某些参数，程序会自动换成更简单的命令。
+安全说明：
+- 只监听本机 `127.0.0.1:43219`，只接受 `--site` 指定网站、并且带配对码的请求
+- 配对码保存在 `~/.scout/codex_bridge_token`（只有你能读），不会打印到屏幕或日志
+- 配对页只能用一次，配对成功后自动关闭；在新浏览器上配对需要先 `--reset`
+- Codex 只用一种严格方式运行：只读沙箱，禁用命令执行、插件和应用，不读用户配置。Codex CLI 太旧不支持时直接报错，不会降级
+- 不记录请求内容
 
 浏览器不允许网站访问本机时：下载整个仓库，在仓库根目录运行
 `python3 bridge/scout_codex_bridge.py --site http://127.0.0.1:43219/ --ui-dir . --connect`，会在本机打开同一个工作台并自动配对。
