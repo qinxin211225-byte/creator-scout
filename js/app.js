@@ -296,27 +296,18 @@ function installCmd() {
     : `curl -fsSL ${site}bridge/install.sh | bash -s -- ${site}`;
 }
 function codexPrompt() {
-  const site = siteUrl(), url = site + 'bridge/scout_codex_bridge.py', origin = location.origin;
-  const win = os === 'win';
-  const dl = win
-    ? `New-Item -ItemType Directory -Force "$HOME\\.scout" | Out-Null; Invoke-WebRequest "${url}" -OutFile "$HOME\\.scout\\scout_codex_bridge.py"`
-    : `mkdir -p ~/.scout && curl -fsSL "${url}" -o ~/.scout/scout_codex_bridge.py`;
-  const py = win ? 'python "$HOME\\.scout\\scout_codex_bridge.py"' : 'python3 ~/.scout/scout_codex_bridge.py';
-  return `请帮我在这台电脑上安装「Scout 本机 Codex 连接程序」，让 Scout 找博主网页（${site}）可以调用你来搜索博主，并设置成开机自动运行、一直保持连接。
+  const site = siteUrl(), origin = location.origin;
+  return `请帮我安装「Scout 本机 Codex 连接程序」，让找博主网页 ${site} 可以调用你来搜索博主。装好后它会开机自动运行，一直保持连接。
 
-请按顺序做：
-1. 下载连接程序：
-   ${dl}
-2. 先完整读一遍 ~/.scout/scout_codex_bridge.py，确认它：只监听 127.0.0.1:43219；/ask 和 /status 只接受来自 ${origin} 且带配对码的请求；/connect 配对页只能用一次，配对成功后关闭；不把配对码打印到屏幕或日志；只用一种严格方式调用 codex exec（只读沙箱、禁用命令执行/插件/应用、不读用户配置），不支持时报错、不会降级。如果不是这样，停下来告诉我，不要运行。
-   3. 确认电脑上有 Python 3.9 或更高版本，以及已登录的 codex 命令。缺什么先告诉我，不要自己安装。
-4. 如果之前在某个终端里手动开着连接程序，先把它关掉。
-5. 安装成开机自动运行的后台服务：
-   ${py} --site ${site} --install
-6. 用这个命令确认它在运行：
-   ${py} --status
-7. 用中文告诉我结果。如果看到“下一步（只需一次）”，提醒我回到 Scout 网页点「一键连接 Codex」。
+1. 下载并完整读一遍这个程序：${site}bridge/scout_codex_bridge.py
+   确认它：只监听 127.0.0.1:43219；只接受来自 ${origin} 且带配对码的请求；配对页只能用一次；不打印配对码；只用只读沙箱调用 codex exec 做网页搜索，不会降级。不是这样就停下告诉我，不要安装。
 
-以后想卸载，运行：${py} --uninstall`;
+2. 确认没问题后，按我电脑的系统运行安装（需要联网和设置开机启动，请向我申请权限）：
+   Mac / Linux：mkdir -p ~/.scout && curl -fsSL ${site}bridge/scout_codex_bridge.py -o ~/.scout/scout_codex_bridge.py && python3 ~/.scout/scout_codex_bridge.py --site ${site} --install --open
+   Windows（PowerShell）：New-Item -ItemType Directory -Force "$HOME\\.scout" | Out-Null; Invoke-WebRequest ${site}bridge/scout_codex_bridge.py -OutFile "$HOME\\.scout\\scout_codex_bridge.py"; python "$HOME\\.scout\\scout_codex_bridge.py" --site ${site} --install --open
+   如果电脑上没有 Python 3，先告诉我，不要自己装。
+
+3. 用简单的中文告诉我结果。安装成功后浏览器会自动打开并连好 Scout；如果没有自动打开，告诉我回到 Scout 网页点「没自动连上？点这里」。`;
 }
 function renderSettings() {
   $('#modeCodex').checked = isCodex();
@@ -325,7 +316,6 @@ function renderSettings() {
   $('#panelApi').hidden = isCodex();
   $$('[data-os]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.os === os)));
   $('#installCmd').textContent = installCmd();
-  $('#termHint').textContent = os === 'win' ? '打开方法：按 Win 键，输入 PowerShell，回车。' : '打开方法：按 Command + 空格，输入「终端」或 Terminal，回车。';
   $('#codexPrompt').textContent = codexPrompt();
   $('#btnConnect').href = CODEX_URL + '/connect';
   if (isCodex() && !$('#codexMsg').textContent) setMsg('codexMsg', secrets.codexToken ? '已配对。可以点「检查连接」确认连接程序还在运行。' : '还没连接。', secrets.codexToken ? 'ok' : '');
@@ -512,7 +502,7 @@ document.addEventListener('click', e => {
         <div class="row-btns"><button type="submit" class="btn-blue">导入</button></div></form>`;
       showModal(); setTimeout(() => $('#knownText') && $('#knownText').focus(), 30); return;
     case 'btnCopyInstall': copy(installCmd(), $('#installCmd')); t.textContent = '已复制，去终端粘贴回车'; setTimeout(() => { t.textContent = '复制这行命令'; }, 2500); return;
-    case 'btnCopyPrompt': copy(codexPrompt(), $('#codexPrompt')); t.textContent = '已复制，去发给 Codex'; setTimeout(() => { t.textContent = '复制这段话'; }, 2500); return;
+    case 'btnCopyPrompt': copy(codexPrompt(), $('#codexPrompt')); t.textContent = '已复制，去粘贴给 Codex'; setTimeout(() => { t.textContent = '复制，发给 Codex'; }, 2500); return;
     case 'btnCodexTest':
       if (!secrets.codexToken) { setMsg('codexMsg', '还没配对，请先点「一键连接 Codex」。', 'bad'); return; }
       setMsg('codexMsg', '正在检查…');

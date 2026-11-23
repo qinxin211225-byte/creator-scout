@@ -129,20 +129,16 @@
           </div>
 
           <div id="panelCodex" class="panel-in" hidden>
-            <p class="lead">只需要做一次：复制下面这行，打开电脑上的「终端」粘贴，按回车。会自动安装、开机自动运行，并自动连好这个网页。</p>
-            <div class="seg small" role="group" aria-label="电脑系统"><button type="button" data-os="mac" aria-pressed="true">Mac / Linux</button><button type="button" data-os="win" aria-pressed="false">Windows</button></div>
-            <div class="prompt-box one"><pre id="installCmd"></pre><button type="button" class="btn-blue" id="btnCopyInstall">复制这行命令</button></div>
-            <p class="hint" id="termHint"></p>
-            <p class="hint">需要电脑上有 Python 3 和已登录的 Codex。装好后浏览器会自动跳回这里，显示“已连接”。</p>
+            <p class="lead">只需要做一次：点下面的按钮复制这段话，发给 Codex。它会帮你装好，并自动连上这个网页。</p>
+            <div class="prompt-box"><pre id="codexPrompt"></pre><button type="button" class="btn-blue" id="btnCopyPrompt">复制，发给 Codex</button></div>
+            <p class="hint">Codex 装的时候可能会问“是否允许”，点允许就行。装好后浏览器会自动回到这里，显示“已连接”。</p>
             <div class="row-btns"><button type="button" class="btn-sec" id="btnCodexTest">检查连接</button>
               <a class="btn-sec" id="btnConnect" href="http://127.0.0.1:43219/connect" target="_blank" rel="noopener">没自动连上？点这里</a></div>
             <p class="msg" id="codexMsg" role="status"></p>
-            <details class="mini"><summary>想先让 Codex 检查一遍再装？</summary>
-              <p class="hint">复制这段话发给 Codex，它会先读代码确认安全，再帮你安装。</p>
-              <div class="prompt-box"><pre id="codexPrompt"></pre><button type="button" class="btn-blue" id="btnCopyPrompt">复制这段话</button></div>
-            </details>
-            <details class="mini"><summary>其他：手动粘贴配对码 / 卸载</summary>
-              <p class="hint">配对码在 <code>~/.scout/codex_bridge_token</code>。卸载：在终端运行 <code>python3 ~/.scout/scout_codex_bridge.py --uninstall</code>。</p>
+            <details class="mini"><summary>会用终端？也可以直接运行一行命令</summary>
+              <div class="seg small" role="group" aria-label="电脑系统"><button type="button" data-os="mac" aria-pressed="true">Mac / Linux</button><button type="button" data-os="win" aria-pressed="false">Windows</button></div>
+              <div class="prompt-box one"><pre id="installCmd"></pre><button type="button" class="btn-sec" id="btnCopyInstall">复制这行命令</button></div>
+              <p class="hint">配对码在 <code>~/.scout/codex_bridge_token</code>，可以粘贴到下面手动连接。卸载：<code>python3 ~/.scout/scout_codex_bridge.py --uninstall</code></p>
               <div class="row-btns"><input id="pairInput" type="password" placeholder="配对码" autocomplete="off" spellcheck="false"><button type="button" class="btn-sec" id="btnPair">连接</button></div>
             </details>
           </div>
