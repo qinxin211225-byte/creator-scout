@@ -1,7 +1,7 @@
 // Scout 默认配置。用户在「设置」里改的内容保存在自己的浏览器，不会改这个文件。
 // 想给所有人换默认值（比如加一个国家），改这里再提交即可。
 
-export const VERSION = '0.3.6';
+export const VERSION = '0.3.7';
 export const REPO_URL = 'https://github.com/qinxin211225-byte/creator-scout';
 
 export const PLATFORMS = {

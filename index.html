@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="scout-version" content="0.3.6">
+<meta name="scout-version" content="0.3.7">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout 找博主</title>
 <meta name="description" content="开源的找博主工作台：用你自己的 AI（本机 Codex 或 API Key），按国家、人群、粉丝、是否出镜找 Instagram 博主。">
@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/app.css?v=0.3.6">
+<link rel="stylesheet" href="assets/app.css?v=0.3.7">
 </head>
 <body>
 <div class="app">
@@ -133,7 +133,7 @@
             <div class="prompt-box"><pre id="codexPrompt"></pre><button type="button" class="btn-blue" id="btnCopyPrompt">复制，发给 Codex</button></div>
             <p class="hint">Codex 装的时候可能会问“是否允许”，点允许就行。装好后浏览器会自动回到这里，显示“已连接”。</p>
             <div class="row-btns"><button type="button" class="btn-sec" id="btnCodexTest">检查连接</button>
-              <a class="btn-sec" id="btnConnect" href="http://127.0.0.1:43219/connect" target="_blank" rel="noopener">没自动连上？点这里</a></div>
+              <button type="button" class="btn-sec" id="btnConnect">没自动连上？点这里</button></div>
             <p class="msg" id="codexMsg" role="status"></p>
             <details class="mini"><summary>会用终端？也可以直接运行一行命令</summary>
               <div class="seg small" role="group" aria-label="电脑系统"><button type="button" data-os="mac" aria-pressed="true">Mac / Linux</button><button type="button" data-os="win" aria-pressed="false">Windows</button></div>
@@ -206,6 +206,6 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:20px">Scout 需要开启 JavaScript。</p></noscript>
-<script type="module" src="js/app.js?v=0.3.6"></script>
+<script type="module" src="js/app.js?v=0.3.7"></script>
 </body>
 </html>
