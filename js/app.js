@@ -1,7 +1,7 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.4';
-import { store } from './store.js?v=0.3.4';
-import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.4';
-import { runSearch } from './search.js?v=0.3.4';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.5';
+import { store } from './store.js?v=0.3.5';
+import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.5';
+import { runSearch } from './search.js?v=0.3.5';
 
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
@@ -289,8 +289,11 @@ function statusSelect(c) {
 
 /* ================= 设置 ================= */
 const siteUrl = () => location.origin + location.pathname.replace(/[^/]*$/, '');
-function bridgeCmd() {
-  return `${os === 'win' ? 'python' : 'python3'} scout_codex_bridge.py --site ${siteUrl()} --install`;
+function installCmd() {
+  const site = siteUrl();
+  return os === 'win'
+    ? `$env:SCOUT_SITE='${site}'; irm ${site}bridge/install.ps1 | iex`
+    : `curl -fsSL ${site}bridge/install.sh | bash -s -- ${site}`;
 }
 function codexPrompt() {
   const site = siteUrl(), url = site + 'bridge/scout_codex_bridge.py', origin = location.origin;
@@ -321,7 +324,8 @@ function renderSettings() {
   $('#panelCodex').hidden = !isCodex();
   $('#panelApi').hidden = isCodex();
   $$('[data-os]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.os === os)));
-  $('#cmdText').textContent = bridgeCmd();
+  $('#installCmd').textContent = installCmd();
+  $('#termHint').textContent = os === 'win' ? '打开方法：按 Win 键，输入 PowerShell，回车。' : '打开方法：按 Command + 空格，输入「终端」或 Terminal，回车。';
   $('#codexPrompt').textContent = codexPrompt();
   $('#btnConnect').href = CODEX_URL + '/connect';
   if (isCodex() && !$('#codexMsg').textContent) setMsg('codexMsg', secrets.codexToken ? '已配对。可以点「检查连接」确认连接程序还在运行。' : '还没连接。', secrets.codexToken ? 'ok' : '');
@@ -507,7 +511,7 @@ document.addEventListener('click', e => {
         <div class="form"><label for="knownReason">备注（可选）</label><input id="knownReason" placeholder="例如：去年合作过"></div>
         <div class="row-btns"><button type="submit" class="btn-blue">导入</button></div></form>`;
       showModal(); setTimeout(() => $('#knownText') && $('#knownText').focus(), 30); return;
-    case 'btnCopyCmd': copy(bridgeCmd(), $('#cmdText')); return;
+    case 'btnCopyInstall': copy(installCmd(), $('#installCmd')); t.textContent = '已复制，去终端粘贴回车'; setTimeout(() => { t.textContent = '复制这行命令'; }, 2500); return;
     case 'btnCopyPrompt': copy(codexPrompt(), $('#codexPrompt')); t.textContent = '已复制，去发给 Codex'; setTimeout(() => { t.textContent = '复制这段话'; }, 2500); return;
     case 'btnCodexTest':
       if (!secrets.codexToken) { setMsg('codexMsg', '还没配对，请先点「一键连接 Codex」。', 'bad'); return; }

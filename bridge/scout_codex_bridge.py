@@ -323,13 +323,14 @@ class Handler(BaseHTTPRequestHandler):
             site = escape(self.server.site, quote=True)
             url = escape(self.server.site + "#pair=" + self.server.token, quote=True)
             page = ('<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width">'
+                    f'<meta http-equiv="refresh" content="1;url={url}">'
                     '<title>连接本机 Codex</title>'
                     '<body style="margin:0;background:#fafafa;font:16px -apple-system,system-ui,sans-serif;color:#0c1014">'
                     '<main style="max-width:420px;margin:12vh auto;padding:32px;background:#fff;border:1px solid #dbdbdb;border-radius:12px;text-align:center">'
                     '<div style="width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5)"></div>'
-                    '<h1 style="font-size:20px;margin:0 0 8px">连接本机 Codex</h1>'
-                    f'<p style="color:#737373;margin:0 0 20px">允许这个网站使用你电脑上的 Codex 找博主：<br><b style="color:#0c1014;word-break:break-all">{site}</b></p>'
-                    f'<a href="{url}" rel="noreferrer" style="display:block;background:#0095f6;color:#fff;text-decoration:none;font-weight:600;padding:10px;border-radius:8px">确认连接并返回网站</a>'
+                    '<h1 style="font-size:20px;margin:0 0 8px">正在连接本机 Codex…</h1>'
+                    f'<p style="color:#737373;margin:0 0 20px">马上回到 Scout：<br><b style="color:#0c1014;word-break:break-all">{site}</b></p>'
+                    f'<a href="{url}" rel="noreferrer" style="display:block;background:#0095f6;color:#fff;text-decoration:none;font-weight:600;padding:10px;border-radius:8px">没有自动跳转？点这里</a>'
                     '<p style="color:#737373;font-size:13px;margin:16px 0 0">不认识这个网站就直接关掉本页，并在终端按 Ctrl+C。</p>'
                     '</main></body></html>')
             return self.respond(200, page.encode(), "text/html; charset=utf-8")
@@ -478,6 +479,7 @@ def main():
     parser.add_argument("--reset", action="store_true", help="作废旧配对码，生成新的（网页需要重新一键连接）")
     parser.add_argument("--ui-dir", type=Path, help="可选：在本机打开下载的 Scout 源码目录（浏览器不允许网站访问本机时用）")
     parser.add_argument("--connect", action="store_true", help="启动后自动打开确认页")
+    parser.add_argument("--open", action="store_true", help="安装后自动打开浏览器完成配对（一行安装命令会用）")
     args = parser.parse_args()
     if args.status:
         ok, text = check_status()
@@ -506,10 +508,14 @@ def main():
             if ok:
                 break
         print(("✅ " if ok else "⚠️ ") + text, flush=True)
-        if created:
-            print(f"下一步（只需一次）：回到 Scout 网页点「一键连接 Codex」，或打开 {LOCAL_ORIGIN}/connect", flush=True)
-        else:
+        if PAIRED_FILE.exists():
             print("沿用之前的配对，网页不用重新连接。", flush=True)
+        elif args.open and ok:
+            print("正在打开浏览器自动连接 Scout…", flush=True)
+            webbrowser.open(LOCAL_ORIGIN + "/connect")
+            print("✅ 全部完成。以后开机会自动运行，不用再管。", flush=True)
+        else:
+            print(f"下一步（只需一次）：回到 Scout 网页点「一键连接 Codex」，或打开 {LOCAL_ORIGIN}/connect", flush=True)
         return
     ui_dir = args.ui_dir.resolve() if args.ui_dir else None
     if ui_dir:

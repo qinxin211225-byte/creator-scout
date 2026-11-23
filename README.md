@@ -17,7 +17,7 @@ Scout 是一个找海外博主（KOL / 达人）的工作台。连接你自己�
 
 1. **打开网页**：点上面的链接。
 2. **连接 AI**：进入「设置」，二选一：
-   - **本机 Codex**：复制页面上的一段话发给 Codex，它会帮你装好；再点一次「一键连接 Codex」（详见下文）。
+   - **本机 Codex**：复制页面上的一行命令，粘贴到「终端」回车，自动装好并连上（详见下文）。
    - **API Key**：选服务商（推荐 DeepSeek，自带联网搜索），填 key，点「测试连接」。
 3. **开始搜索**：回到「找博主」，选条件，点「搜索」。按钮会转圈，直到找完为止，进度会实时显示。
 
@@ -27,8 +27,13 @@ Scout 是一个找海外博主（KOL / 达人）的工作台。连接你自己�
 
 准备：电脑上装好 Python 3.9+ 和 [Codex CLI](https://github.com/openai/codex)，并运行过 `codex login`。
 
-1. 打开网页「设置 → 本机 Codex」，点「复制这段话」，粘贴给 Codex（终端里的 `codex` 或 Codex 应用）。Codex 会下载 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py)，先检查它是否安全，再装成开机自动运行的后台服务。
-2. Codex 说装好后，回到网页点「一键连接 Codex」，在弹出的页面点「确认连接」。浏览器问是否允许访问本地网络时，选允许。
+打开网页「设置 → 本机 Codex」，点「复制这行命令」，粘贴到「终端」按回车，例如：
+
+```bash
+curl -fsSL https://qinxin211225-byte.github.io/creator-scout/bridge/install.sh | bash -s -- https://qinxin211225-byte.github.io/creator-scout/
+```
+
+它会下载 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py)、装成后台服务，再自动打开浏览器连好网页。Windows 用 PowerShell 版本（网页上切换）。想先让 Codex 审一遍代码再装，网页上也有一段可以直接发给 Codex 的话。
 
 只需要做一次：连接程序开机自动运行、出错自动重启，配对永久有效，以后不用再开终端。
 

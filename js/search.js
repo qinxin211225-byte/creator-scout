@@ -1,7 +1,7 @@
 // 找博主流程：按“国家 × 人群”组合逐个让大模型联网搜索 → 代码校验、去重、打分。
 // 粉丝区间、去重、打分全部由代码判断，不直接相信模型的结论。
-import { PLATFORMS, CATEGORIES, LIFESTYLE, CAMERA } from './config.js?v=0.3.4';
-import { callLLM, extractJSON } from './llm.js?v=0.3.4';
+import { PLATFORMS, CATEGORIES, LIFESTYLE, CAMERA } from './config.js?v=0.3.5';
+import { callLLM, extractJSON } from './llm.js?v=0.3.5';
 
 export const keyOf = (platform, username) =>
   String(platform || '').toLowerCase() + ':' + String(username || '').replace(/^@/, '').trim().toLowerCase();
