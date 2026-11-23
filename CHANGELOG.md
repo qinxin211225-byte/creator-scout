@@ -2,6 +2,9 @@
 
 ## 0.3.3 · 2026-11-22
 
+- 「本机 Codex」改成一段提示词：复制给 Codex，它会下载连接程序、先检查是否安全、再装成开机自动运行的后台服务（Mac launchd / Linux systemd / Windows 启动文件夹），出错自动重启
+- 连接程序新增 `--install`、`--status`、`--uninstall`
+
 - 本机 Codex 配对改为永久有效：配对码保存在电脑上（~/.scout/codex_bridge_token），重新运行连接程序不用再连接；`--reset` 可作废旧配对，`--hours` 可设置限时
 
 - 修复：页面一打开就显示「正在搜索…」进度框（其实没在搜索），容易误以为卡住了

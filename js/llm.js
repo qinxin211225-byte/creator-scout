@@ -167,7 +167,7 @@ async function codexFetch(path, cfg, body, signal) {
     });
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    throw new LLMError('连不上本机 Codex。请先在终端运行连接程序（配对不用重做）；如果浏览器问是否允许访问本地网络，请选允许。', 'network');
+    throw new LLMError('连不上本机 Codex：连接程序没在运行。如果装过后台服务，让 Codex 运行一下 --status 检查；没装过就按「设置 → 本机 Codex」把那段话发给 Codex。浏览器问是否允许访问本地网络时，选允许。', 'network');
   }
   let d = null; try { d = await r.json(); } catch (e) {}
   if (r.status === 401) throw new LLMError('本机 Codex 的配对码对不上（可能用 --reset 重置过），请在设置里重新「一键连接」。', 'auth');

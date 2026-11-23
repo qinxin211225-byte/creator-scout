@@ -5,6 +5,12 @@
 需要：Python 3.9+，已安装并登录的 Codex CLI（codex login）。
 
 用法：
+    # 安装成开机自动运行的后台服务（推荐，装一次以后不用管）
+    python3 scout_codex_bridge.py --site https://qinxin211225-byte.github.io/creator-scout/ --install
+    # 查看是否在运行 / 卸载
+    python3 scout_codex_bridge.py --status
+    python3 scout_codex_bridge.py --uninstall
+    # 或者只在当前终端里临时运行
     python3 scout_codex_bridge.py --site https://qinxin211225-byte.github.io/creator-scout/
 
 然后在网页「设置 → 本机 Codex」点「一键连接」。保持这个窗口开着，按 Ctrl+C 断开。
@@ -24,6 +30,10 @@ from html import escape
 import json
 import mimetypes
 import os
+import platform
+import plistlib
+import sys
+import urllib.request
 import secrets
 import shutil
 import subprocess
@@ -88,7 +98,9 @@ def parse_site(raw):
     return origin, origin + path
 
 
-def codex_executable():
+def codex_executable(override=None):
+    if override:
+        return override if Path(override).is_file() else None
     found = shutil.which("codex")
     if found:
         return found
@@ -344,25 +356,183 @@ class Handler(BaseHTTPRequestHandler):
         self.respond(404, {"error": "请打开 Scout 网站使用。"})
 
 
+# ---------------------------------------------------------------- 后台服务
+SERVICE_ID = "com.scout.codexbridge"
+SCOUT_DIR = Path.home() / ".scout"
+CONFIG_FILE = SCOUT_DIR / "bridge.json"
+LOG_FILE = SCOUT_DIR / "bridge.log"
+
+
+def _service_paths():
+    system = platform.system()
+    if system == "Darwin":
+        return system, Path.home() / "Library" / "LaunchAgents" / f"{SERVICE_ID}.plist"
+    if system == "Windows":
+        startup = Path(os.environ.get("APPDATA", str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+        return system, startup / "scout-codex-bridge.vbs"
+    return system, Path.home() / ".config" / "systemd" / "user" / "scout-codex-bridge.service"
+
+
+def _run(cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return subprocess.CompletedProcess(cmd, 1, "", str(exc))
+
+
+def install_service(site_url, codex):
+    """装成开机自动运行、崩溃自动重启的后台服务。程序会先复制到 ~/.scout/，下载目录被清理也不影响。"""
+    SCOUT_DIR.mkdir(parents=True, exist_ok=True)
+    target = SCOUT_DIR / "scout_codex_bridge.py"
+    here = Path(__file__).resolve()
+    if here != target.resolve():
+        shutil.copy2(here, target)
+    python = sys.executable
+    args = [python, str(target), "--site", site_url, "--codex", codex]
+    CONFIG_FILE.write_text(json.dumps({"site": site_url, "codex": codex, "python": python}, ensure_ascii=False, indent=2), encoding="utf-8")
+    path_env = os.pathsep.join(dict.fromkeys([str(Path(codex).parent), str(Path(python).parent),
+                                             os.environ.get("PATH", ""), "/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin"]))
+    system, service = _service_paths()
+    service.parent.mkdir(parents=True, exist_ok=True)
+    if system == "Darwin":
+        with open(service, "wb") as fh:
+            plistlib.dump({"Label": SERVICE_ID, "ProgramArguments": args, "RunAtLoad": True, "KeepAlive": True,
+                           "ThrottleInterval": 10, "WorkingDirectory": str(SCOUT_DIR),
+                           "StandardOutPath": str(LOG_FILE), "StandardErrorPath": str(LOG_FILE),
+                           "EnvironmentVariables": {"PATH": path_env, "HOME": str(Path.home()), "PYTHONUNBUFFERED": "1"}}, fh)
+        uid = os.getuid()
+        _run(["launchctl", "bootout", f"gui/{uid}/{SERVICE_ID}"])
+        result = _run(["launchctl", "bootstrap", f"gui/{uid}", str(service)])
+        if result.returncode != 0:
+            result = _run(["launchctl", "load", "-w", str(service)])
+        if result.returncode != 0:
+            service.unlink(missing_ok=True)
+            raise RuntimeError("launchctl 启动失败：" + (result.stderr or result.stdout).strip())
+    elif system == "Windows":
+        pythonw = Path(python).with_name("pythonw.exe")
+        exe = str(pythonw if pythonw.is_file() else python)
+        line = " ".join('""' + a + '""' for a in [exe] + args[1:])
+        service.write_text(f'CreateObject("WScript.Shell").Run "{line}", 0, False\r\n', encoding="utf-8")
+        _run(["wscript", str(service)])  # 现在就启动一次（隐藏窗口）
+    else:
+        if not shutil.which("systemctl"):
+            raise RuntimeError("这台电脑没有 systemd，无法设置开机自启。可以用 --site 在终端里临时运行")
+        exec_line = " ".join('"' + a.replace('"', '\\"') + '"' for a in args)
+        service.write_text("[Unit]\nDescription=Scout local Codex bridge\n\n[Service]\n"
+                           f"ExecStart={exec_line}\nRestart=always\nRestartSec=5\n"
+                           f"Environment=PATH={path_env}\nEnvironment=PYTHONUNBUFFERED=1\n"
+                           f"StandardOutput=append:{LOG_FILE}\nStandardError=append:{LOG_FILE}\n\n"
+                           "[Install]\nWantedBy=default.target\n", encoding="utf-8")
+        _run(["systemctl", "--user", "daemon-reload"])
+        result = _run(["systemctl", "--user", "enable", "--now", "scout-codex-bridge.service"])
+        if result.returncode != 0:
+            _run(["systemctl", "--user", "disable", "scout-codex-bridge.service"])
+            service.unlink(missing_ok=True)
+            raise RuntimeError("systemctl 启动失败（可能不是图形桌面环境）：" + (result.stderr or result.stdout).strip().splitlines()[-1])
+        _run(["loginctl", "enable-linger", os.environ.get("USER", "")])
+    return service
+
+
+def uninstall_service():
+    system, service = _service_paths()
+    if system == "Darwin":
+        _run(["launchctl", "bootout", f"gui/{os.getuid()}/{SERVICE_ID}"])
+    elif system == "Linux":
+        _run(["systemctl", "--user", "disable", "--now", "scout-codex-bridge.service"])
+    elif system == "Windows":
+        _run(["powershell", "-NoProfile", "-Command",
+              "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*scout_codex_bridge.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"])
+    existed = service.exists()
+    if existed:
+        service.unlink()
+    return existed
+
+
+def check_status():
+    """返回 (是否在运行, 说明)。用保存的配对码问一下本机的连接程序。"""
+    try:
+        cfg = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        origin, _ = parse_site(cfg["site"])
+    except (OSError, ValueError, KeyError, argparse.ArgumentTypeError):
+        cfg, origin = {}, None
+    _, service = _service_paths()
+    installed = service.exists()
+    try:
+        token = TOKEN_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        token = ""
+    if not origin or not token:
+        return False, ("已安装开机自启，但还没有运行记录。" if installed else "还没有安装。")
+    req = urllib.request.Request(LOCAL_ORIGIN + "/status", data=b"{}", method="POST",
+                                 headers={"Content-Type": "application/json", "Origin": origin, "Authorization": "Bearer " + token})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            json.loads(resp.read())
+        return True, f"正在运行（{'已设置开机自启' if installed else '没有设置开机自启'}），允许的网站：{cfg.get('site')}"
+    except Exception as exc:  # noqa: BLE001
+        return False, f"没有在运行（{'已设置开机自启' if installed else '没有设置开机自启'}）：{exc}。日志在 {LOG_FILE}"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Scout 本机 Codex 连接程序")
-    parser.add_argument("--site", required=True, type=parse_site,
+    parser.add_argument("--site", type=parse_site,
                         help="Scout 网页地址，例如 https://你的用户名.github.io/creator-scout/")
+    parser.add_argument("--install", action="store_true", help="安装成开机自动运行的后台服务（推荐）")
+    parser.add_argument("--uninstall", action="store_true", help="卸载后台服务")
+    parser.add_argument("--status", action="store_true", help="查看连接程序是否在运行")
+    parser.add_argument("--codex", help="可选：Codex CLI 的完整路径（安装服务时会自动记下）")
     parser.add_argument("--hours", type=float, default=0, help="可选：配对只在本次运行的这么多小时内有效；默认 0 表示永久有效")
     parser.add_argument("--reset", action="store_true", help="作废旧配对码，生成新的（网页需要重新一键连接）")
     parser.add_argument("--ui-dir", type=Path, help="可选：在本机打开下载的 Scout 源码目录（浏览器不允许网站访问本机时用）")
     parser.add_argument("--connect", action="store_true", help="启动后自动打开确认页")
     args = parser.parse_args()
+    if args.status:
+        ok, text = check_status()
+        print(("✅ " if ok else "❌ ") + text, flush=True)
+        sys.exit(0 if ok else 1)
+    if args.uninstall:
+        print("已卸载后台服务。" if uninstall_service() else "没有找到已安装的后台服务。", flush=True)
+        return
+    if not args.site:
+        parser.error("需要 --site，例如 --site https://你的用户名.github.io/creator-scout/")
     origin, site = args.site
+    if args.install:
+        codex = codex_executable(args.codex)
+        if not codex:
+            parser.error("没找到 Codex CLI。请先安装 Codex CLI，再运行 codex login")
+        token, created = load_or_create_token(args.reset)
+        try:
+            where = install_service(site, codex)
+        except RuntimeError as exc:
+            parser.exit(1, f"安装失败：{exc}\n")
+        print(f"已安装后台服务：{where}", flush=True)
+        print("它会开机自动运行、出错自动重启，不用再开终端。", flush=True)
+        for _ in range(10):
+            time.sleep(1)
+            ok, text = check_status()
+            if ok:
+                break
+        print(("✅ " if ok else "⚠️ ") + text, flush=True)
+        if created:
+            print(f"下一步（只需一次）：回到 Scout 网页点「一键连接 Codex」，或打开 {LOCAL_ORIGIN}/connect", flush=True)
+        else:
+            print("沿用之前的配对，网页不用重新连接。", flush=True)
+        return
     ui_dir = args.ui_dir.resolve() if args.ui_dir else None
     if ui_dir:
         if not (ui_dir / "index.html").is_file():
             parser.error("--ui-dir 要指向含 index.html 的 Scout 源码目录")
         site = LOCAL_ORIGIN + "/"
-    executable = codex_executable()
+    executable = codex_executable(args.codex)
     if not executable:
         parser.error("没找到 Codex CLI。请先安装 Codex CLI，再运行 codex login")
     token, created = load_or_create_token(args.reset)
+    try:
+        SCOUT_DIR.mkdir(parents=True, exist_ok=True)
+        if not CONFIG_FILE.exists() or not ui_dir:
+            CONFIG_FILE.write_text(json.dumps({"site": site, "codex": executable, "python": sys.executable}, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        pass
     try:
         server = Bridge(origin, site, executable, args.hours, token, ui_dir)
     except OSError:
@@ -376,7 +546,7 @@ def main():
             print(f"第一次使用或已重置：请在网页上点「一键连接 Codex」，或打开 {LOCAL_ORIGIN}/connect", flush=True)
         else:
             print("沿用上次的配对，网页不用重新连接。想作废旧配对，用 --reset 重新运行。", flush=True)
-        print("保持这个窗口开着。按 Ctrl+C 断开。", flush=True)
+        print("保持这个窗口开着，按 Ctrl+C 断开。想开机自动运行、不用再开终端：加 --install 运行一次。", flush=True)
         if args.connect:
             threading.Thread(target=webbrowser.open, args=(LOCAL_ORIGIN + "/connect",), daemon=True).start()
         try:

@@ -47,5 +47,47 @@ class BridgeTest(unittest.TestCase):
                 b.TOKEN_FILE = old
 
 
+    def _fake_install(self, system):
+        import tempfile, plistlib, subprocess as sp
+        d = tempfile.mkdtemp()
+        saved = (b.platform.system, b._run, b.SCOUT_DIR, b.CONFIG_FILE, b.LOG_FILE, b.Path.home, b.os.environ.get("APPDATA"))
+        calls = []
+        b.platform.system = lambda: system
+        b._run = lambda cmd: calls.append(cmd) or sp.CompletedProcess(cmd, 0, "", "")
+        b.Path.home = classmethod(lambda cls: b.Path(d))
+        b.SCOUT_DIR = b.Path(d) / ".scout"; b.CONFIG_FILE = b.SCOUT_DIR / "bridge.json"; b.LOG_FILE = b.SCOUT_DIR / "bridge.log"
+        b.os.environ["APPDATA"] = d
+        if system == "Darwin" and not hasattr(b.os, "getuid"):
+            b.os.getuid = lambda: 501
+        try:
+            service = b.install_service("https://me.github.io/creator-scout/", "/usr/local/bin/codex")
+            content = service.read_bytes()
+            self.assertTrue((b.SCOUT_DIR / "scout_codex_bridge.py").is_file())
+            return service, content, calls
+        finally:
+            (b.platform.system, b._run, b.SCOUT_DIR, b.CONFIG_FILE, b.LOG_FILE, b.Path.home, appdata) = saved
+
+    def test_install_mac(self):
+        import plistlib
+        service, content, calls = self._fake_install("Darwin")
+        plist = plistlib.loads(content)
+        self.assertTrue(plist["RunAtLoad"] and plist["KeepAlive"])
+        self.assertIn("--site", plist["ProgramArguments"]); self.assertIn("/usr/local/bin/codex", plist["ProgramArguments"])
+        self.assertTrue(any(c[:2] == ["launchctl", "bootstrap"] for c in calls))
+
+    def test_install_linux(self):
+        service, content, calls = self._fake_install("Linux")
+        text = content.decode()
+        self.assertIn("Restart=always", text); self.assertIn('"--site" "https://me.github.io/creator-scout/"', text)
+        self.assertTrue(any("enable" in c for c in calls))
+
+    def test_install_windows(self):
+        service, content, calls = self._fake_install("Windows")
+        text = content.decode()
+        self.assertTrue(service.name.endswith(".vbs"))
+        self.assertIn('""--site"" ""https://me.github.io/creator-scout/""', text)
+        self.assertIn(", 0, False", text)
+
+
 if __name__ == "__main__":
     unittest.main()
