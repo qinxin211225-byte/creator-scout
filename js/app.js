@@ -1,7 +1,7 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.3';
-import { store } from './store.js?v=0.3.3';
-import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.3';
-import { runSearch } from './search.js?v=0.3.3';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.4';
+import { store } from './store.js?v=0.3.4';
+import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.4';
+import { runSearch } from './search.js?v=0.3.4';
 
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
@@ -304,8 +304,8 @@ function codexPrompt() {
 请按顺序做：
 1. 下载连接程序：
    ${dl}
-2. 先完整读一遍 ~/.scout/scout_codex_bridge.py，确认它：只监听 127.0.0.1:43219；只接受来自 ${origin} 的请求并且要配对码；用只读沙箱调用 codex exec 做网页搜索；没有其他上传或修改文件的操作。如果不是这样，停下来告诉我，不要运行。
-3. 确认电脑上有 Python 3.9 或更高版本，以及已登录的 codex 命令。缺什么先告诉我，不要自己安装。
+2. 先完整读一遍 ~/.scout/scout_codex_bridge.py，确认它：只监听 127.0.0.1:43219；/ask 和 /status 只接受来自 ${origin} 且带配对码的请求；/connect 配对页只能用一次，配对成功后关闭；不把配对码打印到屏幕或日志；只用一种严格方式调用 codex exec（只读沙箱、禁用命令执行/插件/应用、不读用户配置），不支持时报错、不会降级。如果不是这样，停下来告诉我，不要运行。
+   3. 确认电脑上有 Python 3.9 或更高版本，以及已登录的 codex 命令。缺什么先告诉我，不要自己安装。
 4. 如果之前在某个终端里手动开着连接程序，先把它关掉。
 5. 安装成开机自动运行的后台服务：
    ${py} --site ${site} --install

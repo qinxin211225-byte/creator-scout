@@ -18,12 +18,11 @@ class BridgeTest(unittest.TestCase):
             with self.assertRaises(Exception):
                 b.parse_site(bad)
 
-    def test_command_variants_get_simpler(self):
-        v = b.command_variants("codex", True, "/tmp/d", "/tmp/o")
-        self.assertEqual([n for n, _ in v], ["strict", "medium", "simple"])
-        self.assertTrue(all("read-only" in c for _, c in v))
-        self.assertTrue(all("--search" in c for _, c in v))
-        self.assertLess(len(v[2][1]), len(v[0][1]))
+    def test_only_strict_command(self):
+        c = b.codex_command("codex", True, "/tmp/d", "/tmp/o")
+        for flag in ["read-only", "--ignore-user-config", "shell_tool", "apps", "plugins", "--search"]:
+            self.assertIn(flag, c)
+        self.assertFalse(hasattr(b, "command_variants"))
 
     def test_observed_urls_only_from_search_events(self):
         lines = ['{"item":{"type":"web_search","results":[{"url":"https://a.com"}]}}',
