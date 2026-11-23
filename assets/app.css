@@ -32,6 +32,7 @@ a{color:inherit}
 h1,h2{margin:0;text-wrap:balance}
 code{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--hair);border-radius:4px;padding:1px 5px}
 .hint{color:var(--muted);font-size:12px}
+[hidden]{display:none !important}
 .view[hidden]{display:none}
 
 /* ---------- 外框 ---------- */
@@ -287,3 +288,7 @@ table.edit input.l{width:min(460px,50vw)}
 .memory{margin:-4px 0 0;font-size:12px;color:var(--muted)}
 .memory button{border:0;background:none;color:var(--blue);font-weight:600;padding:0;font-size:12px}
 .reason{font-size:11px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px;white-space:nowrap}
+
+.prompt-box{border:1px solid var(--line);border-radius:10px;background:var(--sunk);margin:8px 0;overflow:hidden}
+.prompt-box pre{margin:0;padding:12px 14px;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink)}
+.prompt-box .btn-blue{display:flex;width:100%;border-radius:0}

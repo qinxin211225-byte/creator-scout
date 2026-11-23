@@ -17,26 +17,33 @@ Scout 是一个找海外博主（KOL / 达人）的工作台。连接你自己�
 
 1. **打开网页**：点上面的链接。
 2. **连接 AI**：进入「设置」，二选一：
-   - **本机 Codex**：按页面上的三步走——下载连接程序、在终端运行一行命令、点「一键连接 Codex」（详见下文）。
+   - **本机 Codex**：复制页面上的一段话发给 Codex，它会帮你装好；再点一次「一键连接 Codex」（详见下文）。
    - **API Key**：选服务商（推荐 DeepSeek，自带联网搜索），填 key，点「测试连接」。
 3. **开始搜索**：回到「找博主」，选条件，点「搜索」。按钮会转圈，直到找完为止，进度会实时显示。
 
 ## 连接电脑上的 Codex
 
-适合已经在用 Codex CLI 的人。网页把搜索任务交给你电脑上的 Codex，Codex 联网找完再把结果传回网页。
+适合已经在用 Codex 的人。网页把搜索任务交给你电脑上的 Codex，Codex 联网找完再把结果传回网页。
 
 准备：电脑上装好 Python 3.9+ 和 [Codex CLI](https://github.com/openai/codex)，并运行过 `codex login`。
 
-1. 在网页「设置 → 本机 Codex」下载 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py)。
-2. 在下载的文件夹打开终端，运行网页上显示的命令，例如：
-   ```bash
-   python3 scout_codex_bridge.py --site https://qinxin211225-byte.github.io/creator-scout/
-   ```
-3. 点网页上的「一键连接 Codex」，在弹出的页面点「确认连接」，会自动回到 Scout。浏览器问是否允许访问本地网络时，选允许。
+1. 打开网页「设置 → 本机 Codex」，点「复制这段话」，粘贴给 Codex（终端里的 `codex` 或 Codex 应用）。Codex 会下载 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py)，先检查它是否安全，再装成开机自动运行的后台服务。
+2. Codex 说装好后，回到网页点「一键连接 Codex」，在弹出的页面点「确认连接」。浏览器问是否允许访问本地网络时，选允许。
 
-保持终端窗口开着；按 Ctrl+C 断开。配对默认 12 小时有效（`--hours` 可改）。
+只需要做一次：连接程序开机自动运行、出错自动重启，配对永久有效，以后不用再开终端。
 
-安全说明：连接程序只监听本机 `127.0.0.1:43219`，只接受 `--site` 指定网站的请求，必须带配对码；Codex 以只读沙箱运行，禁用命令执行、插件和应用，只做网页搜索和文字分析；不记录请求内容。如果你的 Codex CLI 版本不认识某些参数，程序会自动换成更简单的命令。
+自己手动装也可以：
+
+```bash
+python3 scout_codex_bridge.py --site https://qinxin211225-byte.github.io/creator-scout/ --install   # 安装后台服务
+python3 ~/.scout/scout_codex_bridge.py --status       # 查看是否在运行
+python3 ~/.scout/scout_codex_bridge.py --uninstall    # 卸载
+python3 ~/.scout/scout_codex_bridge.py --site … --reset   # 作废旧配对，网页需重新连接
+```
+
+后台服务：Mac 用 launchd（`~/Library/LaunchAgents/com.scout.codexbridge.plist`），Linux 用 systemd 用户服务，Windows 用「启动」文件夹。日志在 `~/.scout/bridge.log`。
+
+安全说明：连接程序只监听本机 `127.0.0.1:43219`，只接受 `--site` 指定网站的请求，必须带配对码（保存在 `~/.scout/codex_bridge_token`，只有你能读）；Codex 以只读沙箱运行，禁用命令执行、插件和应用，只做网页搜索和文字分析；不记录请求内容。如果你的 Codex CLI 版本不认识某些参数，程序会自动换成更简单的命令。
 
 浏览器不允许网站访问本机时：下载整个仓库，在仓库根目录运行
 `python3 bridge/scout_codex_bridge.py --site http://127.0.0.1:43219/ --ui-dir . --connect`，会在本机打开同一个工作台并自动配对。

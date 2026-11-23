@@ -1,7 +1,7 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.2';
-import { store } from './store.js?v=0.3.2';
-import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.2';
-import { runSearch } from './search.js?v=0.3.2';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.3';
+import { store } from './store.js?v=0.3.3';
+import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.3';
+import { runSearch } from './search.js?v=0.3.3';
 
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
@@ -288,9 +288,32 @@ function statusSelect(c) {
 }
 
 /* ================= 设置 ================= */
+const siteUrl = () => location.origin + location.pathname.replace(/[^/]*$/, '');
 function bridgeCmd() {
-  const site = location.origin + location.pathname.replace(/[^/]*$/, '');
-  return `${os === 'win' ? 'python' : 'python3'} scout_codex_bridge.py --site ${site}`;
+  return `${os === 'win' ? 'python' : 'python3'} scout_codex_bridge.py --site ${siteUrl()} --install`;
+}
+function codexPrompt() {
+  const site = siteUrl(), url = site + 'bridge/scout_codex_bridge.py', origin = location.origin;
+  const win = os === 'win';
+  const dl = win
+    ? `New-Item -ItemType Directory -Force "$HOME\\.scout" | Out-Null; Invoke-WebRequest "${url}" -OutFile "$HOME\\.scout\\scout_codex_bridge.py"`
+    : `mkdir -p ~/.scout && curl -fsSL "${url}" -o ~/.scout/scout_codex_bridge.py`;
+  const py = win ? 'python "$HOME\\.scout\\scout_codex_bridge.py"' : 'python3 ~/.scout/scout_codex_bridge.py';
+  return `请帮我在这台电脑上安装「Scout 本机 Codex 连接程序」，让 Scout 找博主网页（${site}）可以调用你来搜索博主，并设置成开机自动运行、一直保持连接。
+
+请按顺序做：
+1. 下载连接程序：
+   ${dl}
+2. 先完整读一遍 ~/.scout/scout_codex_bridge.py，确认它：只监听 127.0.0.1:43219；只接受来自 ${origin} 的请求并且要配对码；用只读沙箱调用 codex exec 做网页搜索；没有其他上传或修改文件的操作。如果不是这样，停下来告诉我，不要运行。
+3. 确认电脑上有 Python 3.9 或更高版本，以及已登录的 codex 命令。缺什么先告诉我，不要自己安装。
+4. 如果之前在某个终端里手动开着连接程序，先把它关掉。
+5. 安装成开机自动运行的后台服务：
+   ${py} --site ${site} --install
+6. 用这个命令确认它在运行：
+   ${py} --status
+7. 用中文告诉我结果。如果看到“下一步（只需一次）”，提醒我回到 Scout 网页点「一键连接 Codex」。
+
+以后想卸载，运行：${py} --uninstall`;
 }
 function renderSettings() {
   $('#modeCodex').checked = isCodex();
@@ -299,6 +322,7 @@ function renderSettings() {
   $('#panelApi').hidden = isCodex();
   $$('[data-os]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.os === os)));
   $('#cmdText').textContent = bridgeCmd();
+  $('#codexPrompt').textContent = codexPrompt();
   $('#btnConnect').href = CODEX_URL + '/connect';
   if (isCodex() && !$('#codexMsg').textContent) setMsg('codexMsg', secrets.codexToken ? '已配对。可以点「检查连接」确认连接程序还在运行。' : '还没连接。', secrets.codexToken ? 'ok' : '');
   const apiProv = settings.provider === 'codex' ? (settings.lastApiProvider || 'deepseek') : settings.provider;
@@ -340,6 +364,7 @@ function renderTables() {
     <td><input class="l" data-c="${i}" data-f="cities" value="${esc(c.cities.join(', '))}" aria-label="城市"></td>
     <td><button type="button" class="ghost" data-delcountry="${i}">删除</button></td></tr>`).join('');
 }
+const life = s => s.expires_in == null ? '永久有效，连接程序开机自动运行，不用再管' : `配对还有 ${Math.max(1, Math.round(s.expires_in / 3600))} 小时有效`;
 function pairWith(token, from) {
   token = String(token || '').trim();
   if (!/^[A-Za-z0-9_-]{20,}$/.test(token)) { setMsg('codexMsg', '配对码格式不对，请从终端完整复制。', 'bad'); return; }
@@ -347,7 +372,7 @@ function pairWith(token, from) {
   settings.provider = 'codex'; store.saveSettings(settings);
   secrets.codexToken = token; saveSecrets();
   setMsg('codexMsg', '已配对，正在检查…');
-  codexStatus(llmConfig()).then(s => { setMsg('codexMsg', `已连接本机 Codex（配对 ${Math.round(s.expires_in / 3600)} 小时内有效）。可以回去搜索了。`, 'ok'); toast('已连接本机 Codex'); })
+  codexStatus(llmConfig()).then(s => { setMsg('codexMsg', `已连接本机 Codex（${life(s)}）。可以回去搜索了。`, 'ok'); toast('已连接本机 Codex'); })
     .catch(e => setMsg('codexMsg', e.message, 'bad'))
     .finally(() => renderChrome());
   if (from === 'link') toast('配对成功');
@@ -483,10 +508,11 @@ document.addEventListener('click', e => {
         <div class="row-btns"><button type="submit" class="btn-blue">导入</button></div></form>`;
       showModal(); setTimeout(() => $('#knownText') && $('#knownText').focus(), 30); return;
     case 'btnCopyCmd': copy(bridgeCmd(), $('#cmdText')); return;
+    case 'btnCopyPrompt': copy(codexPrompt(), $('#codexPrompt')); t.textContent = '已复制，去发给 Codex'; setTimeout(() => { t.textContent = '复制这段话'; }, 2500); return;
     case 'btnCodexTest':
       if (!secrets.codexToken) { setMsg('codexMsg', '还没配对，请先点「一键连接 Codex」。', 'bad'); return; }
       setMsg('codexMsg', '正在检查…');
-      codexStatus(llmConfig()).then(s => setMsg('codexMsg', s.busy ? '已连接，Codex 正在处理一个请求。' : `已连接，配对还有 ${Math.max(1, Math.round(s.expires_in / 3600))} 小时有效。`, 'ok')).catch(err => setMsg('codexMsg', err.message, 'bad'));
+      codexStatus(llmConfig()).then(s => setMsg('codexMsg', s.busy ? '已连接，Codex 正在处理一个请求。' : `已连接（${life(s)}）。`, 'ok')).catch(err => setMsg('codexMsg', err.message, 'bad'));
       return;
     case 'btnPair': pairWith($('#pairInput').value, 'manual'); $('#pairInput').value = ''; return;
     case 'btnSaveModel': saveApiForm(); renderChrome(); setMsg('modelMsg', checkConfig(llmConfig()) || '已保存，可以点「测试连接」确认。', checkConfig(llmConfig()) ? 'bad' : 'ok'); return;
