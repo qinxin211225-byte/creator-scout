@@ -1,7 +1,7 @@
 // Scout 默认配置。用户在「设置」里改的内容保存在自己的浏览器，不会改这个文件。
 // 想给所有人换默认值（比如加一个国家），改这里再提交即可。
 
-export const VERSION = '0.3.7';
+export const VERSION = '0.4.0';
 export const REPO_URL = 'https://github.com/qinxin211225-byte/creator-scout';
 
 export const PLATFORMS = {
@@ -18,12 +18,8 @@ export const PLATFORM_TABS = [
   { id: 'youtube', label: 'YouTube', ready: false },
 ];
 
-export const FAN_PRESETS = [
-  { id: '1-10', label: '1万–10万', min: 10000, max: 100000 },
-  { id: '1-3', label: '1万–3万', min: 10000, max: 30000 },
-  { id: '3-5', label: '3万–5万', min: 30000, max: 50000 },
-  { id: '5-10', label: '5万–10万', min: 50000, max: 100000 },
-];
+// 粉丝滑块的刻度（按对数排开，小号和大号都好拖）。最后一格 null = 不限
+export const FAN_STEPS = [0, 1000, 2000, 5000, 10000, 20000, 30000, 50000, 80000, 100000, 150000, 200000, 300000, 500000, 1000000, 2000000, 5000000, null];
 
 // 每次找多少位；0 = 不限（所有组合、城市、搜法都试一遍，直到找不到新的或手动停止）
 export const LIMITS = [
@@ -63,6 +59,10 @@ export const DEFAULT_GROUPS = [
   { id: 'hongkong', name: '香港人', code: 'HK', hints: '粤语内容；简介含 🇭🇰 或“香港人”；港人移民 {city}、移民日常' },
   { id: 'colombian', name: '哥伦比亚人', code: 'CO', hints: '西班牙语内容；简介含 🇨🇴；colombiana en {city}、paisa、#colombianosenusa' },
   { id: 'mexican', name: '墨西哥人', code: 'MX', hints: '西班牙语内容；简介含 🇲🇽；mexicana en {city}、#mexicanosenusa' },
+  { id: 'japanese', name: '日本人', code: 'JP', hints: '日语内容；简介含 🇯🇵；{city}在住、{city}暮らし、ワーホリ、海外生活、#{city}生活' },
+  { id: 'chinese', name: '中国人', code: 'CN', hints: '中文内容；简介含 🇨🇳；{city}生活、{city}日常、留学、移民、华人、vlog' },
+  { id: 'korean', name: '韩国人', code: 'KR', hints: '韩语内容；简介含 🇰🇷；{city} 일상、워홀、유학생、해외살이' },
+  { id: 'vietnamese', name: '越南人', code: 'VN', hints: '越南语内容；简介含 🇻🇳；người Việt ở {city}、du học sinh、cuộc sống ở {city}' },
 ];
 
 export const DEFAULT_PRESETS = [

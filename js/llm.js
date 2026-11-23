@@ -1,6 +1,6 @@
 // 大模型调用：浏览器直接请求服务商，密钥不经过任何第三方。
 // 三种接口格式见 config.js 的 PROVIDERS。
-import { PROVIDERS } from './config.js?v=0.3.7';
+import { PROVIDERS } from './config.js?v=0.4.0';
 
 export class LLMError extends Error {
   constructor(message, kind) { super(message); this.kind = kind || 'error'; }
@@ -66,7 +66,7 @@ async function callMessages(cfg, { system, user, search, maxTokens, signal }) {
       : [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }];
   }
   const messages = [{ role: 'user', content: user }];
-  const out = { text: '', sources: [], usage: { input: 0, output: 0, searches: 0 } };
+  const out = { text: '', sources: [], evidence: [], usage: { input: 0, output: 0, searches: 0 } };
   for (let i = 0; i < 6; i++) {
     const body = { model: cfg.model, max_tokens: maxTokens, system, messages };
     if (tools) body.tools = tools;
@@ -78,10 +78,10 @@ async function callMessages(cfg, { system, user, search, maxTokens, signal }) {
     for (const b of d.content || []) {
       if (b.type === 'text') {
         out.text += b.text || '';
-        for (const c of b.citations || []) if (c.url) out.sources.push(c.url);
+        for (const c of b.citations || []) { if (c.url) out.sources.push(c.url); out.evidence.push(c.url || '', c.title || '', c.cited_text || ''); }
       }
       if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
-        for (const r of b.content) if (r.url) out.sources.push(r.url);
+        for (const r of b.content) { if (r.url) out.sources.push(r.url); out.evidence.push(r.url || '', r.title || ''); }
       }
     }
     if (d.stop_reason === 'pause_turn') { messages.push({ role: 'assistant', content: d.content }); continue; }
@@ -96,15 +96,18 @@ async function callResponses(cfg, { system, user, search, maxTokens, signal }) {
   const body = { model: cfg.model, instructions: system, input: user, max_output_tokens: maxTokens };
   if (search) body.tools = [{ type: 'web_search' }];
   const d = await post(url, { Authorization: 'Bearer ' + cfg.apiKey }, body, cfg, signal);
-  const out = { text: '', sources: [], usage: { input: 0, output: 0, searches: 0 } };
+  const out = { text: '', sources: [], evidence: [], usage: { input: 0, output: 0, searches: 0 } };
   if (typeof d.output_text === 'string') out.text = d.output_text;
   for (const item of d.output || []) {
-    if (item.type === 'web_search_call') out.usage.searches++;
+    if (item.type === 'web_search_call') {
+      out.usage.searches++;
+      for (const src of (item.action && item.action.sources) || []) out.evidence.push(src.url || '', src.title || '');
+    }
     if (item.type !== 'message') continue;
     for (const c of item.content || []) {
       if (c.type === 'output_text') {
         if (!d.output_text) out.text += c.text || '';
-        for (const a of c.annotations || []) if (a.url) out.sources.push(a.url);
+        for (const a of c.annotations || []) if (a.url) { out.sources.push(a.url); out.evidence.push(a.url, a.title || ''); }
       }
     }
   }
@@ -130,7 +133,7 @@ async function callChat(cfg, { system, user, search, maxTokens, signal }) {
       parameters: { type: 'object', properties: { query: { type: 'string', description: '搜索词' } }, required: ['query'] },
     },
   }] : undefined;
-  const out = { text: '', sources: [], usage: { input: 0, output: 0, searches: 0 } };
+  const out = { text: '', sources: [], evidence: [], usage: { input: 0, output: 0, searches: 0 } };
   for (let i = 0; i < 10; i++) {
     const body = { model: cfg.model, messages, max_tokens: maxTokens };
     if (tools) body.tools = tools;
@@ -144,7 +147,7 @@ async function callChat(cfg, { system, user, search, maxTokens, signal }) {
         let q = ''; try { q = JSON.parse(tc.function.arguments || '{}').query || ''; } catch (e) {}
         const res = q ? await tavily(cfg, q, signal) : [];
         out.usage.searches++;
-        res.forEach(x => out.sources.push(x.url));
+        res.forEach(x => { out.sources.push(x.url); out.evidence.push(x.url || '', x.title || '', x.content || ''); });
         messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(res) });
       }
       continue;
@@ -176,9 +179,14 @@ async function codexFetch(path, cfg, body, signal) {
   return d || {};
 }
 export async function codexStatus(cfg, signal) { return codexFetch('/status', cfg, {}, signal); }
+// 让本机连接程序打开来源网页和 Instagram 主页，核对账号是否真的存在。返回能核实的用户名
+export async function codexCheck(cfg, items, signal) {
+  const d = await codexFetch('/check', cfg, { items }, signal);
+  return new Set((d.verified || []).map(u => String(u).toLowerCase()));
+}
 async function callCodex(cfg, { system, user, search, signal }) {
   const d = await codexFetch('/ask', cfg, { prompt: system + '\n\n' + user, search: !!search }, signal);
-  return { text: d.text || '', sources: d.sources || [], usage: { input: 0, output: 0, searches: search ? 1 : 0 } };
+  return { text: d.text || '', sources: d.sources || [], evidence: (d.sources || []).concat(d.evidence || []), usage: { input: 0, output: 0, searches: search ? 1 : 0 } };
 }
 
 /* ---------- 对外接口 ---------- */
