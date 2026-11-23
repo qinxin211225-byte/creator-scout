@@ -27,6 +27,10 @@
 """
 import argparse
 import hmac
+import ipaddress
+import re
+import socket
+from concurrent.futures import ThreadPoolExecutor
 from html import escape
 import json
 import mimetypes
@@ -52,7 +56,7 @@ ADDRESS = f"{HOST}:{PORT}"
 LOCAL_ORIGIN = f"http://{ADDRESS}"
 MAX_BODY = 96 * 1024
 CODEX_TIMEOUT = 300
-ROUTES = {"/ask", "/status"}
+ROUTES = {"/ask", "/status", "/check"}
 TOKEN_FILE = Path.home() / ".scout" / "codex_bridge_token"
 PAIRED_FILE = Path.home() / ".scout" / "paired"   # 配对成功后创建；存在时配对页关闭
 
@@ -110,6 +114,33 @@ def codex_executable(override=None):
     # macOS 桌面版 ChatGPT 自带的 Codex CLI
     bundled = Path("/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
     return str(bundled) if bundled.is_file() else None
+
+
+def observed_evidence(lines):
+    """搜索事件里真实出现的网址、标题和摘要（不含 AI 自己写的搜索词），用来核对账号真假。"""
+    out = []
+
+    def visit(node, key=""):
+        if isinstance(node, list):
+            for item in node:
+                visit(item, key)
+        elif isinstance(node, dict):
+            for k, v in node.items():
+                if k in ("query", "queries"):
+                    continue
+                visit(v, k)
+        elif isinstance(node, str) and key in ("url", "title", "snippet", "text", "content", "description"):
+            out.append(node[:2000])
+
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except (ValueError, UnicodeDecodeError):
+            continue
+        item = event.get("item", {}) if isinstance(event, dict) else {}
+        if isinstance(item, dict) and item.get("type") in {"web_search", "web_search_call"}:
+            visit(item)
+    return out[:400]
 
 
 def observed_urls(lines):
@@ -175,13 +206,78 @@ def invoke(executable, prompt, search):
             answer = output.read_text(encoding="utf-8").strip()[:512 * 1024]
             if not answer:
                 raise RuntimeError("Codex 没有返回内容，请重试")
-            return {"text": answer, "sources": observed_urls(lines) if search else []}
+            return {"text": answer, "sources": observed_urls(lines) if search else [],
+                    "evidence": observed_evidence(lines) if search else []}
         low = err.lower()
         if "login" in low or "unauthorized" in low:
             raise RuntimeError("Codex 还没登录，请在终端运行 codex login")
         if any(k in low for k in ARG_ERRORS):
             raise RuntimeError("你的 Codex CLI 版本太旧，不支持安全限制参数。请把 Codex CLI 更新到最新版再试")
         raise RuntimeError("Codex 调用失败：" + (err.strip().splitlines()[-1][:200] if err.strip() else f"退出码 {result.returncode}"))
+
+
+# ---------------------------------------------------------------- 核对账号真假
+USERNAME_RE = re.compile(r"^[a-z0-9._]{1,30}$")
+
+
+def is_public_host(host):
+    """只允许访问公网地址，不碰本机和局域网。"""
+    try:
+        infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+    except OSError:
+        return False
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+            return False
+    return bool(infos)
+
+
+class _SafeRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        parts = urlsplit(newurl)
+        if parts.scheme != "https" or not is_public_host(parts.hostname or ""):
+            return None
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_opener = urllib.request.build_opener(_SafeRedirect)
+
+
+def page_mentions(url, username):
+    """打开一个公开网页，看里面有没有这个用户名。Instagram 主页要看到“(@用户名)”才算。"""
+    parts = urlsplit(url)
+    if parts.scheme != "https" or not parts.hostname or not is_public_host(parts.hostname):
+        return False
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
+                                               "Accept-Language": "en-US,en;q=0.8"})
+    try:
+        with _opener.open(req, timeout=8) as resp:
+            text = resp.read(800 * 1024).decode("utf-8", "replace").lower()
+    except Exception:  # noqa: BLE001
+        return False
+    u = username.lower()
+    if parts.hostname.endswith("instagram.com"):
+        return f"(@{u})" in text or f'"username":"{u}"' in text
+    return re.search(r"(^|[^a-z0-9._])@?" + re.escape(u) + r"([^a-z0-9._]|$)", text) is not None
+
+
+def check_accounts(items):
+    """items: [{username, urls}]，返回能核实的用户名。"""
+    jobs = []
+    for it in items[:30]:
+        u = str(it.get("username", "")).lower().lstrip("@")
+        if not USERNAME_RE.match(u):
+            continue
+        urls = [f"https://www.instagram.com/{u}/"] + [x for x in it.get("urls", [])[:5] if isinstance(x, str)]
+        jobs.append((u, list(dict.fromkeys(urls))))
+
+    def one(job):
+        u, urls = job
+        return u if any(page_mentions(x, u) for x in urls) else None
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        return [u for u in pool.map(one, jobs) if u]
 
 
 class Bridge(ThreadingHTTPServer):
@@ -280,6 +376,16 @@ class Handler(BaseHTTPRequestHandler):
                                       "expires_in": None if left == float("inf") else int(left)})
         if self.headers.get_content_type() != "application/json":
             return self.respond(415, {"error": "需要 JSON 请求"})
+        if self.path == "/check":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length)) if 0 < length <= MAX_BODY else None
+                items = body.get("items") if isinstance(body, dict) else None
+                if not isinstance(items, list):
+                    raise ValueError()
+            except (ValueError, UnicodeDecodeError, RecursionError):
+                return self.respond(400, {"error": "需要 items 列表"})
+            return self.respond(200, {"verified": check_accounts([i for i in items if isinstance(i, dict)])})
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:

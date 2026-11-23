@@ -1,7 +1,7 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.7';
-import { store } from './store.js?v=0.3.7';
-import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.7';
-import { runSearch } from './search.js?v=0.3.7';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_STEPS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.4.0';
+import { store } from './store.js?v=0.4.0';
+import { checkConfig, testLLM, detectProxy, codexStatus, codexCheck, CODEX_URL } from './llm.js?v=0.4.0';
+import { runSearch } from './search.js?v=0.4.0';
 
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
@@ -69,13 +69,32 @@ function loadPreset(id) {
   renderFinder();
 }
 const chip = (k, v, label, on, title) => `<button type="button" class="chip" data-chip="${k}" data-val="${esc(v)}" aria-pressed="${on}"${title ? ` title="${esc(title)}"` : ''}>${esc(label)}</button>`;
-function fanId() { const f = FAN_PRESETS.find(f => f.min === Q.fmin && f.max === Q.fmax); return f ? f.id : ''; }
+/* 粉丝滑块：值是 FAN_STEPS 的下标；最高那格是“不限”(null) */
+const fanText = v => v == null ? '不限' : v === 0 ? '0' : v >= 10000 ? (v / 10000).toLocaleString('zh-CN', { maximumFractionDigits: 1 }) + '万' : (v / 1000) + '千';
+const nearestStep = v => { if (v == null) return FAN_STEPS.length - 1; let best = 0; FAN_STEPS.forEach((s, i) => { if (s != null && Math.abs(s - v) <= Math.abs((FAN_STEPS[best] ?? 0) - v)) best = i; }); return best; };
+function renderFans() {
+  const lo = nearestStep(Q.fmin || 0), hi = nearestStep(Q.fmax);
+  const n = FAN_STEPS.length - 1;
+  const mi = $('#fanMin'), ma = $('#fanMax');
+  mi.max = ma.max = n; mi.value = lo; ma.value = hi;
+  mi.setAttribute('aria-valuetext', fanText(FAN_STEPS[lo])); ma.setAttribute('aria-valuetext', fanText(FAN_STEPS[hi]));
+  $('#fanFill').style.left = (lo / n * 100) + '%'; $('#fanFill').style.right = (100 - hi / n * 100) + '%';
+  $('#fanLabel').textContent = Q.fmax == null ? `${fanText(Q.fmin || 0)} 以上` : `${fanText(Q.fmin || 0)} – ${fanText(Q.fmax)}`;
+  const ticks = [0, 4, 9, 14, n];   // 0、1万、10万、100万、不限
+  $('#fanTicks').innerHTML = ticks.map(i => `<span style="left:${i / n * 100}%">${fanText(FAN_STEPS[i])}</span>`).join('');
+}
+function onFanInput(e) {
+  let lo = +$('#fanMin').value, hi = +$('#fanMax').value;
+  if (lo >= hi) { if (e.target.id === 'fanMin') lo = hi - 1; else hi = lo + 1; }
+  lo = Math.max(0, lo); hi = Math.min(FAN_STEPS.length - 1, hi);
+  Q.fmin = FAN_STEPS[lo] || 0; Q.fmax = FAN_STEPS[hi];
+  renderFans(); updateHint();
+}
 function renderFinder() {
   $('#ptabs').innerHTML = PLATFORM_TABS.map(t => `<button type="button" class="ptab" role="tab" aria-selected="${t.id === 'instagram'}"${t.ready ? '' : ' disabled'}>${ICON[t.id] || ''}${t.label}${t.ready ? '' : '<span class="soon">即将推出</span>'}</button>`).join('');
   $('#chipCountries').innerHTML = countries.map(c => chip('countries', c.code, c.name, Q.countries.includes(c.code), c.cities.join(', '))).join('');
   $('#chipGroups').innerHTML = groups.map(g => chip('groups', g.id, g.name, Q.groups.includes(g.id), g.hints)).join('') + `<button type="button" class="chip edit" data-nav="settings" data-open-fold="groups">＋ 编辑</button>`;
-  const fid = fanId();
-  $('#chipFans').innerHTML = FAN_PRESETS.map(f => chip('fans', f.id, f.label, f.id === fid)).join('');
+  renderFans();
   $('#qCam').checked = Q.camera === 'require';
   $('#qLife').checked = (Q.categories || []).length > 0;
   const preset = LIMITS.some(l => l.v === (Q.limit || 0));
@@ -159,6 +178,7 @@ async function doSearchInner(trigger, preset) {
       },
       onSeen: s => seenBuf.push(s),
       onCover: key => store.touchCoverage(key),
+      checker: isCodex() ? (items, signal) => codexCheck(cfg, items, signal) : null,
     });
   } catch (e) { toast(e.message); }
   if (seenBuf.length) store.addSeen(seenBuf.splice(0));
@@ -172,7 +192,7 @@ async function doSearchInner(trigger, preset) {
   const st = { ok: '完成', partial: '部分完成', failed: '没有完成', cancelled: '已停止' }[run.status] || run.status;
   $('#progTitle').textContent = `${st}：新找到 ${run.added} 位博主`;
   const rs = Object.entries(run.reject_reasons || {}).map(([k, v]) => `${k} ${v}`).join('，');
-  $('#progLog').insertAdjacentHTML('beforeend', `<li class="${run.added ? 'ok' : 'info'}">${esc(`共 ${run.calls} 轮，看了 ${run.candidates} 个候选：新找到 ${run.added}，已有的 ${run.duplicates}，不合格 ${run.rejected}${rs ? `（${rs}）` : ''}`)}</li>`);
+  $('#progLog').insertAdjacentHTML('beforeend', `<li class="${run.added ? 'ok' : 'info'}">${esc(`共 ${run.calls} 轮，看了 ${run.candidates} 个候选：新找到 ${run.added}，已有的 ${run.duplicates}，不合格 ${run.rejected}${rs ? `（${rs}）` : ''}，查不到（疑似编造）${run.fake || 0}`)}</li>`);
   prog.classList.add('done');
   $('#btnCancel').textContent = '收起';
   if (run.added) { F.scope = 'today'; F.group = 'all'; }
@@ -442,8 +462,7 @@ document.addEventListener('click', e => {
   if (d.listTab) listTab = d.listTab;
   if (d.nav) { go(d.nav); if (d.openFold) setTimeout(() => { const f = $('details.fold'); if (f) { f.open = true; f.scrollIntoView({ block: 'start' }); } }, 50); return; }
   if (d.chip) {
-    if (d.chip === 'fans') { const f = FAN_PRESETS.find(x => x.id === d.val); Q.fmin = f.min; Q.fmax = f.max; }
-    else if (d.chip === 'limit') { Q.limit = +d.val; $('#qLimitCustom').value = ''; }
+    if (d.chip === 'limit') { Q.limit = +d.val; $('#qLimitCustom').value = ''; }
     else { const a = Q[d.chip]; const i = a.indexOf(d.val); if (i >= 0) a.splice(i, 1); else a.push(d.val); }
     renderFinder(); return;
   }
@@ -585,6 +604,7 @@ document.addEventListener('change', e => {
 });
 let noteT;
 document.addEventListener('input', e => {
+  if (e.target.id === 'fanMin' || e.target.id === 'fanMax') { onFanInput(e); return; }
   if (e.target.id === 'qLimitCustom') { const v = parseInt(e.target.value, 10); if (isFinite(v) && v > 0) { Q.limit = Math.min(500, v); $$('[data-chip=limit]').forEach(b => b.setAttribute('aria-pressed', 'false')); $('.num-in').classList.add('on'); updateHint(); } }
   if (e.target.id === 'mNotes' && openId) { const id = openId, v = e.target.value; clearTimeout(noteT); noteT = setTimeout(() => { patch(id, { notes: v }); toast('备注已保存'); }, 600); }
 });

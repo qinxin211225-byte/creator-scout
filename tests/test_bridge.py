@@ -88,5 +88,29 @@ class BridgeTest(unittest.TestCase):
         self.assertIn(", 0, False", text)
 
 
+    def test_check_accounts_uses_profile_and_sources(self):
+        seen = {}
+        old_pm = b.page_mentions
+        def fake(url, u):
+            seen.setdefault(u, []).append(url)
+            return (u == "real.one" and "instagram.com/real.one" in url) or (u == "listed" and "collabstr" in url)
+        b.page_mentions = fake
+        try:
+            got = b.check_accounts([{"username": "real.one", "urls": []},
+                                    {"username": "listed", "urls": ["https://collabstr.com/x"]},
+                                    {"username": "made.up", "urls": ["https://example.com/a"]},
+                                    {"username": "bad name!", "urls": []}])
+        finally:
+            b.page_mentions = old_pm
+        self.assertEqual(sorted(got), ["listed", "real.one"])
+        self.assertNotIn("bad name!", seen)
+
+    def test_page_mentions_blocks_local_and_http(self):
+        self.assertFalse(b.page_mentions("http://example.com/", "x"))
+        self.assertFalse(b.page_mentions("https://127.0.0.1/", "x"))
+        self.assertFalse(b.page_mentions("https://localhost/", "x"))
+        self.assertFalse(b.is_public_host("10.0.0.5"))
+
+
 if __name__ == "__main__":
     unittest.main()

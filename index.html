@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="scout-version" content="0.3.7">
+<meta name="scout-version" content="0.4.0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout 找博主</title>
 <meta name="description" content="开源的找博主工作台：用你自己的 AI（本机 Codex 或 API Key），按国家、人群、粉丝、是否出镜找 Instagram 博主。">
@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/app.css?v=0.3.7">
+<link rel="stylesheet" href="assets/app.css?v=0.4.0">
 </head>
 <body>
 <div class="app">
@@ -46,7 +46,17 @@
           <h1 id="h-discover">找 Instagram 博主</h1>
           <div class="q"><span class="qk">在哪</span><div class="chips" id="chipCountries"></div></div>
           <div class="q"><span class="qk">什么人</span><div class="chips" id="chipGroups"></div></div>
-          <div class="q"><span class="qk">粉丝</span><div class="chips" id="chipFans"></div></div>
+          <div class="q"><span class="qk">粉丝</span>
+            <div class="fans">
+              <div class="fans-val"><b id="fanLabel">1万 – 10万</b><span class="hint">拖动两个圆点调整最低和最高</span></div>
+              <div class="dual" id="fanDual">
+                <div class="dual-track"></div><div class="dual-fill" id="fanFill"></div>
+                <input type="range" id="fanMin" min="0" step="1" aria-label="最低粉丝数">
+                <input type="range" id="fanMax" min="0" step="1" aria-label="最高粉丝数">
+              </div>
+              <div class="dual-ticks" id="fanTicks"></div>
+            </div>
+          </div>
           <div class="q"><span class="qk">找多少</span><div class="chips"><span class="chips" id="chipLimit"></span>
             <label class="num-in" for="qLimitCustom"><input id="qLimitCustom" type="number" min="1" max="500" inputmode="numeric" placeholder="自己填"><span>位</span></label></div></div>
           <div class="q"><span class="qk">要求</span>
@@ -206,6 +216,6 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:20px">Scout 需要开启 JavaScript。</p></noscript>
-<script type="module" src="js/app.js?v=0.3.7"></script>
+<script type="module" src="js/app.js?v=0.4.0"></script>
 </body>
 </html>

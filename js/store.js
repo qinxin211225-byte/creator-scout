@@ -1,5 +1,5 @@
 // 所有数据只存在用户自己的浏览器（localStorage）。
-import { DEFAULT_COUNTRIES, DEFAULT_GROUPS, DEFAULT_PRESETS } from './config.js?v=0.3.7';
+import { DEFAULT_COUNTRIES, DEFAULT_GROUPS, DEFAULT_PRESETS } from './config.js?v=0.4.0';
 
 const K = {
   creators: 'scout.creators.v1',
@@ -55,7 +55,18 @@ export const store = {
 
   presets: () => read(L(), K.presets, null) || clone(DEFAULT_PRESETS),
   savePresets: p => write(L(), K.presets, p),
-  groups: () => read(L(), K.groups, null) || clone(DEFAULT_GROUPS),
+  // 老用户的人群库是旧默认值时，自动补上新加的默认人群（只补一次，用户删掉的不会再加回来）
+  groups() {
+    const saved = read(L(), K.groups, null);
+    if (!saved) return clone(DEFAULT_GROUPS);
+    const done = read(L(), 'scout.groups.added.v2', false);
+    if (!done) {
+      const ids = new Set(saved.map(g => g.id));
+      for (const g of DEFAULT_GROUPS) if (['japanese', 'chinese', 'korean', 'vietnamese'].includes(g.id) && !ids.has(g.id)) saved.push(clone(g));
+      write(L(), K.groups, saved); write(L(), 'scout.groups.added.v2', true);
+    }
+    return saved;
+  },
   saveGroups: g => write(L(), K.groups, g),
   countries: () => read(L(), K.countries, null) || clone(DEFAULT_COUNTRIES),
   saveCountries: c => write(L(), K.countries, c),

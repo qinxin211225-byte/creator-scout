@@ -72,3 +72,14 @@ test('不限模式按城市轮换，最久没搜过的城市优先，并换搜�
   const after = planTasks([[au, g]], { city: '' }, { [coverKey('AU', 'indonesian', before.city)]: [1, 1] }, 24).find(x => x.city === before.city);
   assert.notEqual(before.angle.id, after.angle.id);
 });
+
+import { seenIn } from '../js/search.js';
+test('核对：用户名必须真的出现在来源里，不能只是部分重合', () => {
+  const ev = ['https://www.instagram.com/nadia.mel/', 'Top Indonesian creators in Melbourne: @rizky.syd, Dewi', 'collabstr.com/asnitanity'];
+  assert.ok(seenIn('nadia.mel', ev));
+  assert.ok(seenIn('@Rizky.Syd', ev));
+  assert.ok(seenIn('asnitanity', ev));
+  assert.ok(!seenIn('nadia', ev));            // 只是别人用户名的一部分，不算
+  assert.ok(!seenIn('made.up.person', ev));
+  assert.ok(!seenIn('', ev));
+});
