@@ -294,3 +294,4 @@ table.edit input.l{width:min(460px,50vw)}
 .prompt-box .btn-blue{display:flex;width:100%;border-radius:0}
 .lead{margin:0 0 10px;font-size:14px}
 .prompt-box.one pre{white-space:pre-wrap;word-break:break-all;font-size:13px}
+.prompt-box pre#codexPrompt{font-size:14px;white-space:pre-wrap;word-break:break-all}

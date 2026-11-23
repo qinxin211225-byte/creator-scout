@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="scout-version" content="0.3.5">
+<meta name="scout-version" content="0.3.6">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout 找博主</title>
 <meta name="description" content="开源的找博主工作台：用你自己的 AI（本机 Codex 或 API Key），按国家、人群、粉丝、是否出镜找 Instagram 博主。">
@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/app.css?v=0.3.5">
+<link rel="stylesheet" href="assets/app.css?v=0.3.6">
 </head>
 <body>
 <div class="app">
@@ -129,7 +129,7 @@
           </div>
 
           <div id="panelCodex" class="panel-in" hidden>
-            <p class="lead">只需要做一次：点下面的按钮复制这段话，发给 Codex。它会帮你装好，并自动连上这个网页。</p>
+            <p class="lead">只需要做一次：复制下面这句话发给 Codex，它会帮你装好，并自动连上这个网页。</p>
             <div class="prompt-box"><pre id="codexPrompt"></pre><button type="button" class="btn-blue" id="btnCopyPrompt">复制，发给 Codex</button></div>
             <p class="hint">Codex 装的时候可能会问“是否允许”，点允许就行。装好后浏览器会自动回到这里，显示“已连接”。</p>
             <div class="row-btns"><button type="button" class="btn-sec" id="btnCodexTest">检查连接</button>
@@ -206,6 +206,6 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:20px">Scout 需要开启 JavaScript。</p></noscript>
-<script type="module" src="js/app.js?v=0.3.5"></script>
+<script type="module" src="js/app.js?v=0.3.6"></script>
 </body>
 </html>

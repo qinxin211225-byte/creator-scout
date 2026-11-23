@@ -1,7 +1,7 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.5';
-import { store } from './store.js?v=0.3.5';
-import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.5';
-import { runSearch } from './search.js?v=0.3.5';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.6';
+import { store } from './store.js?v=0.3.6';
+import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.6';
+import { runSearch } from './search.js?v=0.3.6';
 
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
@@ -296,18 +296,7 @@ function installCmd() {
     : `curl -fsSL ${site}bridge/install.sh | bash -s -- ${site}`;
 }
 function codexPrompt() {
-  const site = siteUrl(), origin = location.origin;
-  return `请帮我安装「Scout 本机 Codex 连接程序」，让找博主网页 ${site} 可以调用你来搜索博主。装好后它会开机自动运行，一直保持连接。
-
-1. 下载并完整读一遍这个程序：${site}bridge/scout_codex_bridge.py
-   确认它：只监听 127.0.0.1:43219；只接受来自 ${origin} 且带配对码的请求；配对页只能用一次；不打印配对码；只用只读沙箱调用 codex exec 做网页搜索，不会降级。不是这样就停下告诉我，不要安装。
-
-2. 确认没问题后，按我电脑的系统运行安装（需要联网和设置开机启动，请向我申请权限）：
-   Mac / Linux：mkdir -p ~/.scout && curl -fsSL ${site}bridge/scout_codex_bridge.py -o ~/.scout/scout_codex_bridge.py && python3 ~/.scout/scout_codex_bridge.py --site ${site} --install --open
-   Windows（PowerShell）：New-Item -ItemType Directory -Force "$HOME\\.scout" | Out-Null; Invoke-WebRequest ${site}bridge/scout_codex_bridge.py -OutFile "$HOME\\.scout\\scout_codex_bridge.py"; python "$HOME\\.scout\\scout_codex_bridge.py" --site ${site} --install --open
-   如果电脑上没有 Python 3，先告诉我，不要自己装。
-
-3. 用简单的中文告诉我结果。安装成功后浏览器会自动打开并连好 Scout；如果没有自动打开，告诉我回到 Scout 网页点「没自动连上？点这里」。`;
+  return `按照这个说明，帮我安装 Scout 本机 Codex 连接程序：${siteUrl()}bridge/codex-install.md`;
 }
 function renderSettings() {
   $('#modeCodex').checked = isCodex();
