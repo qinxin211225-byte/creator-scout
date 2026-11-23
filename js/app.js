@@ -1,7 +1,7 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.2';
-import { store } from './store.js?v=0.3.2';
-import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.2';
-import { runSearch } from './search.js?v=0.3.2';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.3';
+import { store } from './store.js?v=0.3.3';
+import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.3';
+import { runSearch } from './search.js?v=0.3.3';
 
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
@@ -340,6 +340,7 @@ function renderTables() {
     <td><input class="l" data-c="${i}" data-f="cities" value="${esc(c.cities.join(', '))}" aria-label="城市"></td>
     <td><button type="button" class="ghost" data-delcountry="${i}">删除</button></td></tr>`).join('');
 }
+const life = s => s.expires_in == null ? '永久有效，以后重新运行连接程序也不用再连接' : `配对还有 ${Math.max(1, Math.round(s.expires_in / 3600))} 小时有效`;
 function pairWith(token, from) {
   token = String(token || '').trim();
   if (!/^[A-Za-z0-9_-]{20,}$/.test(token)) { setMsg('codexMsg', '配对码格式不对，请从终端完整复制。', 'bad'); return; }
@@ -347,7 +348,7 @@ function pairWith(token, from) {
   settings.provider = 'codex'; store.saveSettings(settings);
   secrets.codexToken = token; saveSecrets();
   setMsg('codexMsg', '已配对，正在检查…');
-  codexStatus(llmConfig()).then(s => { setMsg('codexMsg', `已连接本机 Codex（配对 ${Math.round(s.expires_in / 3600)} 小时内有效）。可以回去搜索了。`, 'ok'); toast('已连接本机 Codex'); })
+  codexStatus(llmConfig()).then(s => { setMsg('codexMsg', `已连接本机 Codex（${life(s)}）。可以回去搜索了。`, 'ok'); toast('已连接本机 Codex'); })
     .catch(e => setMsg('codexMsg', e.message, 'bad'))
     .finally(() => renderChrome());
   if (from === 'link') toast('配对成功');
@@ -486,7 +487,7 @@ document.addEventListener('click', e => {
     case 'btnCodexTest':
       if (!secrets.codexToken) { setMsg('codexMsg', '还没配对，请先点「一键连接 Codex」。', 'bad'); return; }
       setMsg('codexMsg', '正在检查…');
-      codexStatus(llmConfig()).then(s => setMsg('codexMsg', s.busy ? '已连接，Codex 正在处理一个请求。' : `已连接，配对还有 ${Math.max(1, Math.round(s.expires_in / 3600))} 小时有效。`, 'ok')).catch(err => setMsg('codexMsg', err.message, 'bad'));
+      codexStatus(llmConfig()).then(s => setMsg('codexMsg', s.busy ? '已连接，Codex 正在处理一个请求。' : `已连接（${life(s)}）。`, 'ok')).catch(err => setMsg('codexMsg', err.message, 'bad'));
       return;
     case 'btnPair': pairWith($('#pairInput').value, 'manual'); $('#pairInput').value = ''; return;
     case 'btnSaveModel': saveApiForm(); renderChrome(); setMsg('modelMsg', checkConfig(llmConfig()) || '已保存，可以点「测试连接」确认。', checkConfig(llmConfig()) ? 'bad' : 'ok'); return;

@@ -1,6 +1,6 @@
 // 大模型调用：浏览器直接请求服务商，密钥不经过任何第三方。
 // 三种接口格式见 config.js 的 PROVIDERS。
-import { PROVIDERS } from './config.js?v=0.3.2';
+import { PROVIDERS } from './config.js?v=0.3.3';
 
 export class LLMError extends Error {
   constructor(message, kind) { super(message); this.kind = kind || 'error'; }
@@ -167,10 +167,10 @@ async function codexFetch(path, cfg, body, signal) {
     });
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    throw new LLMError('连不上本机 Codex。请确认连接程序的窗口还开着；如果浏览器问是否允许访问本地网络，请选允许。', 'network');
+    throw new LLMError('连不上本机 Codex。请先在终端运行连接程序（配对不用重做）；如果浏览器问是否允许访问本地网络，请选允许。', 'network');
   }
   let d = null; try { d = await r.json(); } catch (e) {}
-  if (r.status === 401) throw new LLMError('本机 Codex 的配对已过期，请在设置里重新「一键连接」。', 'auth');
+  if (r.status === 401) throw new LLMError('本机 Codex 的配对码对不上（可能用 --reset 重置过），请在设置里重新「一键连接」。', 'auth');
   if (r.status === 409) throw new LLMError('Codex 正在处理上一个请求，请稍等。', 'rate');
   if (!r.ok) throw new LLMError((d && d.error) || ('本机 Codex 返回 ' + r.status), 'http');
   return d || {};

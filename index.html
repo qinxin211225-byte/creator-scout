@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="scout-version" content="0.3.2">
+<meta name="scout-version" content="0.3.3">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout 找博主</title>
 <meta name="description" content="开源的找博主工作台：用你自己的 AI（本机 Codex 或 API Key），按国家、人群、粉丝、是否出镜找 Instagram 博主。">
@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/app.css?v=0.3.2">
+<link rel="stylesheet" href="assets/app.css?v=0.3.3">
 </head>
 <body>
 <div class="app">
@@ -136,9 +136,9 @@
               <li><b>在下载的文件夹里打开终端，运行</b>
                 <div class="seg small" role="group" aria-label="电脑系统"><button type="button" data-os="mac" aria-pressed="true">Mac / Linux</button><button type="button" data-os="win" aria-pressed="false">Windows</button></div>
                 <div class="cmd"><code id="cmdText"></code><button type="button" class="ghost" id="btnCopyCmd">复制</button></div>
-                <p class="hint">运行后保持那个窗口开着。</p></li>
+                <p class="hint">运行后保持那个窗口开着。以后每次用之前运行这一行就行，不用重新连接。</p></li>
               <li><b>一键连接</b>
-                <p>点下面的按钮，在新打开的页面点「确认连接」，会自动回到这里。浏览器问是否允许访问本地网络时，选允许。</p>
+                <p>只需要做一次，配对永久有效。点下面的按钮，在新打开的页面点「确认连接」，会自动回到这里。浏览器问是否允许访问本地网络时，选允许。</p>
                 <div class="row-btns">
                   <a class="btn-blue" id="btnConnect" href="http://127.0.0.1:43219/connect" target="_blank" rel="noopener">一键连接 Codex</a>
                   <button type="button" class="btn-sec" id="btnCodexTest">检查连接</button>
@@ -213,6 +213,6 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:20px">Scout 需要开启 JavaScript。</p></noscript>
-<script type="module" src="js/app.js?v=0.3.2"></script>
+<script type="module" src="js/app.js?v=0.3.3"></script>
 </body>
 </html>

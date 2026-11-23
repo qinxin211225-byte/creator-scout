@@ -9,9 +9,12 @@
 
 然后在网页「设置 → 本机 Codex」点「一键连接」。保持这个窗口开着，按 Ctrl+C 断开。
 
+配对一次永久有效：配对码保存在你电脑的 ~/.scout/codex_bridge_token，
+以后重新运行连接程序，网页不用再连接。想作废旧配对，加 --reset 运行一次。
+
 安全设计：
 - 只监听 127.0.0.1，只接受 --site 指定网站发来的请求（检查 Origin 和 Host）
-- 需要配对码（随机生成，默认 12 小时有效），配对码只在你的浏览器里
+- 需要配对码（随机生成，只保存在你的电脑和你的浏览器里，默认永久有效）
 - Codex 以只读沙箱运行，禁用命令执行、插件和应用，只做网页搜索和文字分析
 - 不记录任何请求内容
 """
@@ -39,6 +42,29 @@ LOCAL_ORIGIN = f"http://{ADDRESS}"
 MAX_BODY = 96 * 1024
 CODEX_TIMEOUT = 300
 ROUTES = {"/ask", "/status"}
+TOKEN_FILE = Path.home() / ".scout" / "codex_bridge_token"
+
+
+def load_or_create_token(reset=False):
+    """配对码保存在本机文件里，重启连接程序后不变，网页不用重新连接。"""
+    if not reset:
+        try:
+            token = TOKEN_FILE.read_text(encoding="utf-8").strip()
+            if len(token) >= 32 and all(c.isalnum() or c in "-_" for c in token):
+                return token, False
+        except OSError:
+            pass
+    token = secrets.token_urlsafe(32)
+    try:
+        TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        TOKEN_FILE.write_text(token, encoding="utf-8")
+        try:
+            os.chmod(TOKEN_FILE, 0o600)
+        except OSError:
+            pass
+    except OSError:
+        print("[Scout] 无法保存配对码，下次运行需要重新连接", flush=True)
+    return token, True
 
 
 def parse_site(raw):
@@ -165,7 +191,7 @@ class Bridge(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = os.name != "nt"
 
-    def __init__(self, origin, site, executable, hours, ui_dir=None):
+    def __init__(self, origin, site, executable, hours, token, ui_dir=None):
         super().__init__((HOST, PORT), Handler)
         self.origin = origin
         self.site = site
@@ -173,8 +199,8 @@ class Bridge(ThreadingHTTPServer):
         self.ui_dir = ui_dir
         if ui_dir:
             self.origins.add(LOCAL_ORIGIN)
-        self.token = secrets.token_urlsafe(32)
-        self.expires = time.monotonic() + hours * 3600
+        self.token = token
+        self.expires = time.monotonic() + hours * 3600 if hours and hours > 0 else float("inf")
         self.executable = executable
         self.job = threading.Lock()
         self.state = {}
@@ -239,7 +265,7 @@ class Handler(BaseHTTPRequestHandler):
         supplied = self.headers.get("Authorization", "").encode("utf-8")
         if (time.monotonic() >= self.server.expires or
                 not hmac.compare_digest(supplied, ("Bearer " + self.server.token).encode("ascii"))):
-            self.respond(401, {"error": "配对码无效或已过期，请重新运行连接程序，再点一键连接"})
+            self.respond(401, {"error": "配对码不对（可能用 --reset 重置过），请在网页上重新点一键连接"})
             return False
         return True
 
@@ -247,8 +273,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self.check_route() or not self.authorized():
             return
         if self.path == "/status":
+            left = self.server.expires - time.monotonic()
             return self.respond(200, {"ok": True, "busy": self.server.job.locked(),
-                                      "expires_in": int(self.server.expires - time.monotonic())})
+                                      "expires_in": None if left == float("inf") else int(left)})
         if self.headers.get_content_type() != "application/json":
             return self.respond(415, {"error": "需要 JSON 请求"})
         try:
@@ -321,7 +348,8 @@ def main():
     parser = argparse.ArgumentParser(description="Scout 本机 Codex 连接程序")
     parser.add_argument("--site", required=True, type=parse_site,
                         help="Scout 网页地址，例如 https://你的用户名.github.io/creator-scout/")
-    parser.add_argument("--hours", type=float, default=12, help="配对码有效小时数，默认 12")
+    parser.add_argument("--hours", type=float, default=0, help="可选：配对只在本次运行的这么多小时内有效；默认 0 表示永久有效")
+    parser.add_argument("--reset", action="store_true", help="作废旧配对码，生成新的（网页需要重新一键连接）")
     parser.add_argument("--ui-dir", type=Path, help="可选：在本机打开下载的 Scout 源码目录（浏览器不允许网站访问本机时用）")
     parser.add_argument("--connect", action="store_true", help="启动后自动打开确认页")
     args = parser.parse_args()
@@ -334,15 +362,20 @@ def main():
     executable = codex_executable()
     if not executable:
         parser.error("没找到 Codex CLI。请先安装 Codex CLI，再运行 codex login")
+    token, created = load_or_create_token(args.reset)
     try:
-        server = Bridge(origin, site, executable, max(0.1, args.hours), ui_dir)
+        server = Bridge(origin, site, executable, args.hours, token, ui_dir)
     except OSError:
         parser.exit(1, f"端口 {PORT} 被占用，可能已经开着一个连接程序。请先关掉它。\n")
     with server:
         print("Scout 本机 Codex 连接程序已启动", flush=True)
         print(f"允许的网站：{site}", flush=True)
-        print(f"配对码（{args.hours:g} 小时有效，也可以手动粘贴到网页）：{server.token}", flush=True)
-        print(f"一键连接页面：{LOCAL_ORIGIN}/connect", flush=True)
+        life = f"{args.hours:g} 小时内有效" if args.hours and args.hours > 0 else "永久有效"
+        print(f"配对码（{life}，也可以手动粘贴到网页）：{server.token}", flush=True)
+        if created:
+            print(f"第一次使用或已重置：请在网页上点「一键连接 Codex」，或打开 {LOCAL_ORIGIN}/connect", flush=True)
+        else:
+            print("沿用上次的配对，网页不用重新连接。想作废旧配对，用 --reset 重新运行。", flush=True)
         print("保持这个窗口开着。按 Ctrl+C 断开。", flush=True)
         if args.connect:
             threading.Thread(target=webbrowser.open, args=(LOCAL_ORIGIN + "/connect",), daemon=True).start()

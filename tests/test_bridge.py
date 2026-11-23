@@ -31,5 +31,21 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(b.observed_urls(lines), ["https://a.com"])
 
 
+    def test_token_persists_and_resets(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            old = b.TOKEN_FILE
+            b.TOKEN_FILE = Path(d) / ".scout" / "codex_bridge_token"
+            try:
+                t1, created1 = b.load_or_create_token()
+                t2, created2 = b.load_or_create_token()
+                t3, created3 = b.load_or_create_token(reset=True)
+                self.assertTrue(created1 and not created2 and created3)
+                self.assertEqual(t1, t2)
+                self.assertNotEqual(t1, t3)
+            finally:
+                b.TOKEN_FILE = old
+
+
 if __name__ == "__main__":
     unittest.main()

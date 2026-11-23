@@ -32,6 +32,7 @@ a{color:inherit}
 h1,h2{margin:0;text-wrap:balance}
 code{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--hair);border-radius:4px;padding:1px 5px}
 .hint{color:var(--muted);font-size:12px}
+[hidden]{display:none !important}
 .view[hidden]{display:none}
 
 /* ---------- 外框 ---------- */
