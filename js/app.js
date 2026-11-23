@@ -1,7 +1,7 @@
-import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.6';
-import { store } from './store.js?v=0.3.6';
-import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.6';
-import { runSearch } from './search.js?v=0.3.6';
+import { VERSION, REPO_URL, PLATFORMS, PLATFORM_TABS, FAN_PRESETS, LIMITS, CATEGORIES, LIFESTYLE, STATUSES, PROVIDERS, DEFAULT_GROUPS, DEFAULT_COUNTRIES } from './config.js?v=0.3.7';
+import { store } from './store.js?v=0.3.7';
+import { checkConfig, testLLM, detectProxy, codexStatus, CODEX_URL } from './llm.js?v=0.3.7';
+import { runSearch } from './search.js?v=0.3.7';
 
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
@@ -306,7 +306,6 @@ function renderSettings() {
   $$('[data-os]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.os === os)));
   $('#installCmd').textContent = installCmd();
   $('#codexPrompt').textContent = codexPrompt();
-  $('#btnConnect').href = CODEX_URL + '/connect';
   if (isCodex() && !$('#codexMsg').textContent) setMsg('codexMsg', secrets.codexToken ? '已配对。可以点「检查连接」确认连接程序还在运行。' : '还没连接。', secrets.codexToken ? 'ok' : '');
   const apiProv = settings.provider === 'codex' ? (settings.lastApiProvider || 'deepseek') : settings.provider;
   $('#sProvider').innerHTML = Object.entries(PROVIDERS).filter(([k]) => k !== 'codex').map(([k, v]) => `<option value="${k}"${k === apiProv ? ' selected' : ''}>${esc(v.label)}</option>`).join('');
@@ -491,6 +490,15 @@ document.addEventListener('click', e => {
         <div class="row-btns"><button type="submit" class="btn-blue">导入</button></div></form>`;
       showModal(); setTimeout(() => $('#knownText') && $('#knownText').focus(), 30); return;
     case 'btnCopyInstall': copy(installCmd(), $('#installCmd')); t.textContent = '已复制，去终端粘贴回车'; setTimeout(() => { t.textContent = '复制这行命令'; }, 2500); return;
+    case 'btnConnect': {
+      // 先看连接程序有没有在运行，没运行就直接说清楚，不打开一个打不开的页面
+      const w = window.open('', '_blank');
+      setMsg('codexMsg', '正在检查电脑上的连接程序…');
+      fetch(CODEX_URL + '/connect', { mode: 'no-cors', cache: 'no-store' })
+        .then(() => { if (w) w.location = CODEX_URL + '/connect'; else location.href = CODEX_URL + '/connect'; setMsg('codexMsg', '已打开配对页，会自动跳回这里。'); })
+        .catch(() => { if (w) w.close(); setMsg('codexMsg', '你电脑上的连接程序没有在运行，说明还没装好。请把那句话重新发给 Codex，如果 Codex 说装好了但这里还是连不上，把 Codex 最后的回复截图下来排查。', 'bad'); });
+      return;
+    }
     case 'btnCopyPrompt': copy(codexPrompt(), $('#codexPrompt')); t.textContent = '已复制，去粘贴给 Codex'; setTimeout(() => { t.textContent = '复制，发给 Codex'; }, 2500); return;
     case 'btnCodexTest':
       if (!secrets.codexToken) { setMsg('codexMsg', '还没配对，请先点「一键连接 Codex」。', 'bad'); return; }

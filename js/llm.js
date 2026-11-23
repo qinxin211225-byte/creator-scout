@@ -1,6 +1,6 @@
 // 大模型调用：浏览器直接请求服务商，密钥不经过任何第三方。
 // 三种接口格式见 config.js 的 PROVIDERS。
-import { PROVIDERS } from './config.js?v=0.3.6';
+import { PROVIDERS } from './config.js?v=0.3.7';
 
 export class LLMError extends Error {
   constructor(message, kind) { super(message); this.kind = kind || 'error'; }
