@@ -17,7 +17,7 @@ Scout 是一个找海外博主（KOL / 达人）的工作台。连接你自己�
 
 1. **打开网页**：点上面的链接。
 2. **连接 AI**：进入「设置」，二选一：
-   - **本机 Codex**：复制页面上的一段话发给 Codex，它会帮你装好；再点一次「一键连接 Codex」（详见下文）。
+   - **本机 Codex**：复制页面上的一段话发给 Codex，它会帮你装好并自动连上（详见下文）。
    - **API Key**：选服务商（推荐 DeepSeek，自带联网搜索），填 key，点「测试连接」。
 3. **开始搜索**：回到「找博主」，选条件，点「搜索」。按钮会转圈，直到找完为止，进度会实时显示。
 
@@ -27,8 +27,13 @@ Scout 是一个找海外博主（KOL / 达人）的工作台。连接你自己�
 
 准备：电脑上装好 Python 3.9+ 和 [Codex CLI](https://github.com/openai/codex)，并运行过 `codex login`。
 
-1. 打开网页「设置 → 本机 Codex」，点「复制这段话」，粘贴给 Codex（终端里的 `codex` 或 Codex 应用）。Codex 会下载 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py)，先检查它是否安全，再装成开机自动运行的后台服务。
-2. Codex 说装好后，回到网页点「一键连接 Codex」，在弹出的页面点「确认连接」。浏览器问是否允许访问本地网络时，选允许。
+打开网页「设置 → 本机 Codex」，点「复制，发给 Codex」，把这段话粘贴给 Codex（Codex 应用或终端里的 `codex`）。Codex 会先读一遍 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py) 确认安全，再装成后台服务，并自动打开浏览器连好网页。中途 Codex 问是否允许，点允许即可。
+
+会用终端的话，也可以直接运行：
+
+```bash
+curl -fsSL https://qinxin211225-byte.github.io/creator-scout/bridge/install.sh | bash -s -- https://qinxin211225-byte.github.io/creator-scout/
+```
 
 只需要做一次：连接程序开机自动运行、出错自动重启，配对永久有效，以后不用再开终端。
 

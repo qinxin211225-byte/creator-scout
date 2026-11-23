@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="scout-version" content="0.3.4">
+<meta name="scout-version" content="0.3.5">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout 找博主</title>
 <meta name="description" content="开源的找博主工作台：用你自己的 AI（本机 Codex 或 API Key），按国家、人群、粉丝、是否出镜找 Instagram 博主。">
@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/app.css?v=0.3.4">
+<link rel="stylesheet" href="assets/app.css?v=0.3.5">
 </head>
 <body>
 <div class="app">
@@ -129,28 +129,17 @@
           </div>
 
           <div id="panelCodex" class="panel-in" hidden>
-            <ol class="steps">
-              <li><b>把下面这段话复制给 Codex</b>
-                <p>在终端里打开 <code>codex</code>（或 Codex 应用），粘贴发送。它会下载连接程序、先检查一遍是否安全，再装成开机自动运行的后台服务。只需要做一次，以后电脑重启也会自动连上。</p>
-                <div class="seg small" role="group" aria-label="电脑系统"><button type="button" data-os="mac" aria-pressed="true">Mac / Linux</button><button type="button" data-os="win" aria-pressed="false">Windows</button></div>
-                <div class="prompt-box"><pre id="codexPrompt"></pre><button type="button" class="btn-blue" id="btnCopyPrompt">复制这段话</button></div>
-                <p class="hint">Codex 运行命令前可能会问你是否允许（下载文件、设置开机启动），选允许即可。需要电脑上有 Python 3.9+，并且 Codex 已登录。</p></li>
-              <li><b>Codex 说装好了，点一键连接（只需一次）</b>
-                <p>在新打开的页面点「确认连接」，会自动回到这里。浏览器问是否允许访问本地网络时，选允许。</p>
-                <div class="row-btns">
-                  <a class="btn-blue" id="btnConnect" href="http://127.0.0.1:43219/connect" target="_blank" rel="noopener">一键连接 Codex</a>
-                  <button type="button" class="btn-sec" id="btnCodexTest">检查连接</button>
-                </div>
-                <details class="mini"><summary>打不开？手动粘贴配对码</summary>
-                  <p class="hint">让 Codex 运行 <code>cat ~/.scout/codex_bridge_token</code>（Windows：<code>type $HOME\.scout\codex_bridge_token</code>），把结果粘贴到这里。</p>
-                  <div class="row-btns"><input id="pairInput" type="password" placeholder="配对码" autocomplete="off" spellcheck="false"><button type="button" class="btn-sec" id="btnPair">连接</button></div>
-                </details></li>
-            </ol>
+            <p class="lead">只需要做一次：点下面的按钮复制这段话，发给 Codex。它会帮你装好，并自动连上这个网页。</p>
+            <div class="prompt-box"><pre id="codexPrompt"></pre><button type="button" class="btn-blue" id="btnCopyPrompt">复制，发给 Codex</button></div>
+            <p class="hint">Codex 装的时候可能会问“是否允许”，点允许就行。装好后浏览器会自动回到这里，显示“已连接”。</p>
+            <div class="row-btns"><button type="button" class="btn-sec" id="btnCodexTest">检查连接</button>
+              <a class="btn-sec" id="btnConnect" href="http://127.0.0.1:43219/connect" target="_blank" rel="noopener">没自动连上？点这里</a></div>
             <p class="msg" id="codexMsg" role="status"></p>
-            <details class="mini"><summary>不想让 Codex 装？自己手动装</summary>
-              <p class="hint">下载 <a id="dlBridge" href="bridge/scout_codex_bridge.py" download="scout_codex_bridge.py">scout_codex_bridge.py</a>，在下载的文件夹打开终端运行：</p>
-              <div class="cmd"><code id="cmdText"></code><button type="button" class="ghost" id="btnCopyCmd">复制</button></div>
-              <p class="hint">查看是否在运行：把 <code>--install</code> 换成 <code>--status</code>；卸载：<code>--uninstall</code>。</p>
+            <details class="mini"><summary>会用终端？也可以直接运行一行命令</summary>
+              <div class="seg small" role="group" aria-label="电脑系统"><button type="button" data-os="mac" aria-pressed="true">Mac / Linux</button><button type="button" data-os="win" aria-pressed="false">Windows</button></div>
+              <div class="prompt-box one"><pre id="installCmd"></pre><button type="button" class="btn-sec" id="btnCopyInstall">复制这行命令</button></div>
+              <p class="hint">配对码在 <code>~/.scout/codex_bridge_token</code>，可以粘贴到下面手动连接。卸载：<code>python3 ~/.scout/scout_codex_bridge.py --uninstall</code></p>
+              <div class="row-btns"><input id="pairInput" type="password" placeholder="配对码" autocomplete="off" spellcheck="false"><button type="button" class="btn-sec" id="btnPair">连接</button></div>
             </details>
           </div>
 
@@ -217,6 +206,6 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:20px">Scout 需要开启 JavaScript。</p></noscript>
-<script type="module" src="js/app.js?v=0.3.4"></script>
+<script type="module" src="js/app.js?v=0.3.5"></script>
 </body>
 </html>
