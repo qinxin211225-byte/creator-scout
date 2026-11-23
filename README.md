@@ -27,7 +27,11 @@ Scout 是一个找海外博主（KOL / 达人）的工作台。连接你自己�
 
 准备：电脑上装好 Python 3.9+ 和 [Codex CLI](https://github.com/openai/codex)，并运行过 `codex login`。
 
-打开网页「设置 → 本机 Codex」，点「复制，发给 Codex」，把这段话粘贴给 Codex（Codex 应用或终端里的 `codex`）。Codex 会先读一遍 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py) 确认安全，再装成后台服务，并自动打开浏览器连好网页。中途 Codex 问是否允许，点允许即可。
+打开网页「设置 → 本机 Codex」，点「复制，发给 Codex」，把这一句话发给 Codex：
+
+> 按照这个说明，帮我安装 Scout 本机 Codex 连接程序：https://qinxin211225-byte.github.io/creator-scout/bridge/codex-install.md
+
+Codex 会按 [安装说明](bridge/codex-install.md) 装好 [`scout_codex_bridge.py`](bridge/scout_codex_bridge.py)，设成开机自启，并自动打开浏览器连好网页。中途 Codex 问是否允许，点允许即可。
 
 会用终端的话，也可以直接运行：
 

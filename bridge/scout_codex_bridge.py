@@ -268,7 +268,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.check_route() or not self.authorized():
             return
-        if not PAIRED_FILE.exists():   # 网页第一次用配对码成功访问：关闭配对页
+        # 网页第一次用配对码成功访问：关闭配对页。连接程序自己的 --status 检查不算配对
+        if not PAIRED_FILE.exists() and self.headers.get("X-Scout-Local-Check") != "1":
             try:
                 PAIRED_FILE.touch()
             except OSError:
@@ -458,7 +459,8 @@ def check_status():
     if not origin or not token:
         return False, ("已安装开机自启，但还没有运行记录。" if installed else "还没有安装。")
     req = urllib.request.Request(LOCAL_ORIGIN + "/status", data=b"{}", method="POST",
-                                 headers={"Content-Type": "application/json", "Origin": origin, "Authorization": "Bearer " + token})
+                                 headers={"Content-Type": "application/json", "Origin": origin, "Authorization": "Bearer " + token,
+                                          "X-Scout-Local-Check": "1"})
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             json.loads(resp.read())

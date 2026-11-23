@@ -1,5 +1,5 @@
 // 所有数据只存在用户自己的浏览器（localStorage）。
-import { DEFAULT_COUNTRIES, DEFAULT_GROUPS, DEFAULT_PRESETS } from './config.js?v=0.3.5';
+import { DEFAULT_COUNTRIES, DEFAULT_GROUPS, DEFAULT_PRESETS } from './config.js?v=0.3.6';
 
 const K = {
   creators: 'scout.creators.v1',
